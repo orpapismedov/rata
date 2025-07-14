@@ -1,4 +1,4 @@
-import { checkAndSendReminders } from './email'
+import { checkAndSendReminders, initEmailJS, isEmailJSConfigured } from './email'
 import { Pilot } from './pilots'
 
 // Store last check date and sent reminders in localStorage
@@ -153,21 +153,13 @@ export const runAutomaticEmailCheck = async (pilots: Pilot[]): Promise<void> => 
   }
   
   try {
-    // Check if EmailJS is configured
-    const config = localStorage.getItem('emailjs-config')
-    if (!config) {
-      console.log('❌ EmailJS not configured')
+    // Check if EmailJS is configured (either via env vars or localStorage)
+    if (!isEmailJSConfigured()) {
+      console.log('❌ EmailJS not configured - please set environment variables or configure via admin panel')
       return
     }
     
-    const emailConfig = JSON.parse(config)
-    if (!emailConfig.serviceId || !emailConfig.templateId || !emailConfig.publicKey) {
-      console.log('❌ EmailJS configuration incomplete')
-      return
-    }
-    
-    // Initialize EmailJS with the stored configuration
-    const { initEmailJS } = await import('./email')
+    // Initialize EmailJS with the configuration
     const initialized = initEmailJS()
     if (!initialized) {
       console.log('❌ Failed to initialize EmailJS')

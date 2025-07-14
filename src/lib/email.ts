@@ -1,11 +1,25 @@
 import emailjs from '@emailjs/browser'
 
-// Get EmailJS configuration from localStorage
+// Get EmailJS configuration from environment variables or localStorage
 const getEmailJSConfig = () => {
+  // First try environment variables (recommended for production)
+  const envConfig = {
+    serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+    templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
+    publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+  }
+  
+  // If environment variables are set, use them
+  if (envConfig.serviceId && envConfig.templateId && envConfig.publicKey) {
+    return envConfig
+  }
+  
+  // Fallback to localStorage for manual configuration
   if (typeof window !== 'undefined') {
     const config = localStorage.getItem('emailjs-config')
     return config ? JSON.parse(config) : null
   }
+  
   return null
 }
 
@@ -17,6 +31,12 @@ export const initEmailJS = () => {
     return true
   }
   return false
+}
+
+// Check if EmailJS is properly configured
+export const isEmailJSConfigured = (): boolean => {
+  const config = getEmailJSConfig()
+  return !!(config && config.serviceId && config.templateId && config.publicKey)
 }
 
 export interface EmailData {

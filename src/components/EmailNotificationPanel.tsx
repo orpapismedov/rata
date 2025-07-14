@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Settings, Send, CheckCircle, AlertTriangle, X } from 'lucide-react'
-import { initEmailJS, sendManualReminder } from '@/lib/email'
+import { Mail, Settings, Send, CheckCircle, AlertTriangle, X, Info } from 'lucide-react'
+import { initEmailJS, sendManualReminder, isEmailJSConfigured } from '@/lib/email'
 import { forceEmailCheck, cleanupOldReminders, resetDailyCheck, debugEmailSystem } from '@/lib/autoEmail'
 import { Pilot } from '@/lib/pilots'
 import AdminProtected from './AdminProtected'
@@ -21,16 +21,41 @@ export default function EmailNotificationPanel({ pilots, onClose }: EmailNotific
   const [showConfig, setShowConfig] = useState(false)
   const [sending, setSending] = useState(false)
   const [lastCheck, setLastCheck] = useState<Date | null>(null)
+  const [configSource, setConfigSource] = useState<'env' | 'localStorage' | 'none'>('none')
 
-  // Load configuration from localStorage
+  // Check configuration status
   useEffect(() => {
-    const savedConfig = localStorage.getItem('emailjs-config')
-    if (savedConfig) {
-      const config = JSON.parse(savedConfig)
-      setServiceId(config.serviceId || '')
-      setTemplateId(config.templateId || '')
-      setPublicKey(config.publicKey || '')
-      setIsConfigured(!!(config.serviceId && config.templateId && config.publicKey))
+    // Check if configured via environment variables
+    const hasEnvConfig = !!(
+      process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID && 
+      process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID && 
+      process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
+    )
+    
+    if (hasEnvConfig) {
+      setConfigSource('env')
+      setIsConfigured(true)
+      setServiceId(process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '')
+      setTemplateId(process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || '')
+      setPublicKey(process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || '')
+    } else {
+      // Check localStorage configuration
+      const savedConfig = localStorage.getItem('emailjs-config')
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig)
+        setServiceId(config.serviceId || '')
+        setTemplateId(config.templateId || '')
+        setPublicKey(config.publicKey || '')
+        const localConfigured = !!(config.serviceId && config.templateId && config.publicKey)
+        setIsConfigured(localConfigured)
+        setConfigSource(localConfigured ? 'localStorage' : 'none')
+      }
+    }
+    
+    // Update last check date
+    const lastCheckDate = localStorage.getItem('last-email-check')
+    if (lastCheckDate) {
+      setLastCheck(new Date(lastCheckDate))
     }
   }, [])
 
@@ -164,11 +189,41 @@ export default function EmailNotificationPanel({ pilots, onClose }: EmailNotific
                     <AlertTriangle className="w-5 h-5 text-yellow-400" />
                   )}
                   <span className={`text-sm ${isConfigured ? 'text-green-400' : 'text-yellow-400'}`}>
-                    {isConfigured ? 'מוגדר ומוכן לשימוש' : 'דרוש הגדרה'}
+                    {isConfigured 
+                      ? `מוגדר ומוכן לשימוש ${configSource === 'env' ? '(משתני סביבה)' : '(הגדרות מקומיות)'}`
+                      : 'דרוש הגדרה'
+                    }
                   </span>
                 </div>
 
-                {showConfig && (
+                {configSource === 'env' && (
+                  <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-2 text-blue-300 text-sm">
+                      <Info className="w-4 h-4" />
+                      <span>הגדרות EmailJS מוגדרות באמצעות משתני סביבה - ההגדרות יפעלו בכל מכשיר</span>
+                    </div>
+                  </div>
+                )}
+
+                {configSource === 'none' && (
+                  <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-3 mb-4">
+                    <div className="text-amber-300 text-sm">
+                      <p className="font-medium mb-2">לשימוש מלא במערכת, נדרש להגדיר EmailJS:</p>
+                      <div className="space-y-1 text-xs">
+                        <p>🔧 <strong>באמצעות משתני סביבה (מומלץ):</strong></p>
+                        <p className="ml-4">הוסף ל-.env.local:</p>
+                        <code className="block bg-black/30 p-2 rounded mt-1 font-mono">
+                          NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id<br/>
+                          NEXT_PUBLIC_EMAILJS_TEMPLATE_ID=your_template_id<br/>
+                          NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
+                        </code>
+                        <p className="mt-2">📱 <strong>באמצעות ההגדרות המקומיות:</strong> לחץ "הגדר" למטה</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {showConfig && configSource !== 'env' && (
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
