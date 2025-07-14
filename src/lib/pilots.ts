@@ -17,7 +17,7 @@ export interface Pilot {
   lastName: string
   email: string
   rataCertification: 'IP' | 'EP' | 'BOTH'
-  category: string
+  categories: string[]
   healthCertificateExpiry: Date
   isInstructor: boolean
   instructorLicenseExpiry?: Date
@@ -59,7 +59,7 @@ export const getAllPilots = async (): Promise<Pilot[]> => {
         lastName: data.lastName,
         email: data.email,
         rataCertification: data.rataCertification,
-        category: data.category,
+        categories: data.categories || [data.category].filter(Boolean), // Handle backward compatibility
         healthCertificateExpiry: timestampToDate(data.healthCertificateExpiry),
         isInstructor: data.isInstructor,
         instructorLicenseExpiry: data.instructorLicenseExpiry ? timestampToDate(data.instructorLicenseExpiry) : undefined,
@@ -83,7 +83,7 @@ export const addPilot = async (pilot: Omit<Pilot, 'id' | 'createdAt' | 'updatedA
       lastName: pilot.lastName,
       email: pilot.email,
       rataCertification: pilot.rataCertification,
-      category: pilot.category,
+      categories: pilot.categories,
       healthCertificateExpiry: dateToTimestamp(pilot.healthCertificateExpiry),
       isInstructor: pilot.isInstructor,
       instructorLicenseExpiry: pilot.instructorLicenseExpiry ? dateToTimestamp(pilot.instructorLicenseExpiry) : null,
@@ -113,7 +113,7 @@ export const updatePilot = async (id: string, pilot: Omit<Pilot, 'id' | 'created
       lastName: pilot.lastName,
       email: pilot.email,
       rataCertification: pilot.rataCertification,
-      category: pilot.category,
+      categories: pilot.categories,
       healthCertificateExpiry: dateToTimestamp(pilot.healthCertificateExpiry),
       isInstructor: pilot.isInstructor,
       instructorLicenseExpiry: pilot.instructorLicenseExpiry ? dateToTimestamp(pilot.instructorLicenseExpiry) : null,
@@ -148,7 +148,7 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'כהן',
         email: 'yossi.cohen@example.com',
         rataCertification: 'IP',
-        category: 'כנף קבועה 25-2000 קג',
+        categories: ['כנף קבועה 25-2000 קג'],
         healthCertificateExpiry: new Date('2025-03-15'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2025-06-20'),
@@ -159,7 +159,7 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'לוי',
         email: 'sara.levi@example.com',
         rataCertification: 'EP',
-        category: 'רחפן 0-25 קג',
+        categories: ['רחפן 0-25 קג'],
         healthCertificateExpiry: new Date('2025-02-10'),
         isInstructor: false,
         restrictions: 'ללא'
@@ -169,7 +169,7 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'אברהם',
         email: 'david.abraham@example.com',
         rataCertification: 'BOTH',
-        category: 'עילוי ממונע VTOL',
+        categories: ['עילוי ממונע VTOL', 'כנף קבועה 25-2000 קג'],
         healthCertificateExpiry: new Date('2025-01-30'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2025-04-15'),
@@ -180,7 +180,7 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'ישראלי',
         email: 'michal.israeli@example.com',
         rataCertification: 'IP',
-        category: 'כנף קבועה דו מנועי 25-2000 קג',
+        categories: ['כנף קבועה דו מנועי 25-2000 קג', 'כנף קבועה 25-2000 קג'],
         healthCertificateExpiry: new Date('2024-12-01'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2024-11-15'),
@@ -191,7 +191,7 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'שמש',
         email: 'avi.shemesh@example.com',
         rataCertification: 'EP',
-        category: 'רחפן 25-2000 קג',
+        categories: ['רחפן 25-2000 קג', 'רחפן 0-25 קג'],
         healthCertificateExpiry: new Date('2025-08-20'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2025-08-10'),

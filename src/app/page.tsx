@@ -121,7 +121,7 @@ function PilotForm({
   const [lastName, setLastName] = useState(initialData?.lastName || '')
   const [email, setEmail] = useState(initialData?.email || '')
   const [rataCertification, setRataCertification] = useState<'IP' | 'EP' | 'BOTH'>(initialData?.rataCertification || 'IP')
-  const [category, setCategory] = useState(initialData?.category || 'כנף קבועה 25-2000 קג')
+  const [categories, setCategories] = useState<string[]>(initialData?.categories || [])
   const [healthCertificateExpiry, setHealthCertificateExpiry] = useState(
     initialData?.healthCertificateExpiry 
       ? initialData.healthCertificateExpiry.toISOString().split('T')[0]
@@ -158,7 +158,7 @@ function PilotForm({
       lastName: lastName.trim(),
       email: email.trim(),
       rataCertification,
-      category,
+      categories,
       healthCertificateExpiry: new Date(healthCertificateExpiry),
       isInstructor,
       instructorLicenseExpiry: isInstructor && instructorLicenseExpiry ? new Date(instructorLicenseExpiry) : undefined,
@@ -251,21 +251,34 @@ function PilotForm({
           
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-300">
-              קטגוריה
+              קטגוריות כטמ"ם (ניתן לבחור מספר)
             </label>
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            >
-              <option value="כנף קבועה 25-2000 קג">כנף קבועה 25-2000 קג</option>
-              <option value="כנף קבועה 0-25 קג">כנף קבועה 0-25 קג</option>
-              <option value="כנף קבועה דו מנועי 25-2000 קג">כנף קבועה דו מנועי 25-2000 קג</option>
-              <option value="עילוי ממונע VTOL">עילוי ממונע VTOL</option>
-              <option value="רחפן 25-2000 קג">רחפן 25-2000 קג</option>
-              <option value="רחפן 0-25 קג">רחפן 0-25 קג</option>
-            </select>
+            <div className="space-y-2">
+              {[
+                'כנף קבועה 25-2000 קג',
+                'כנף קבועה 0-25 קג', 
+                'כנף קבועה דו מנועי 25-2000 קג',
+                'עילוי ממונע VTOL',
+                'רחפן 25-2000 קג',
+                'רחפן 0-25 קג'
+              ].map((categoryOption) => (
+                <label key={categoryOption} className="flex items-center space-x-3 space-x-reverse">
+                  <input
+                    type="checkbox"
+                    checked={categories.includes(categoryOption)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setCategories([...categories, categoryOption])
+                      } else {
+                        setCategories(categories.filter(c => c !== categoryOption))
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm text-gray-300">{categoryOption}</span>
+                </label>
+              ))}
+            </div>
           </div>
           
           <div className="space-y-2">
@@ -616,8 +629,8 @@ export default function Dashboard() {
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
                 <Plane className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
-                <span className="mr-2 text-lg sm:text-xl font-bold text-white hidden sm:block">מערכת ניהול רישיונות</span>
-                <span className="mr-2 text-sm font-bold text-white sm:hidden">ניהול רישיונות</span>
+                <span className="mr-2 text-lg sm:text-xl font-bold text-white hidden sm:block">מערכת ניהול רישיונות כטמ"ם</span>
+                <span className="mr-2 text-sm font-bold text-white sm:hidden">כטמ"ם אירונאוטיקס</span>
               </div>
             </div>
             <AdminLogin onAdminStatusChange={setIsAdmin} />
@@ -635,8 +648,8 @@ export default function Dashboard() {
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">לוח בקרה</h1>
-              <p className="text-gray-400 text-sm sm:text-base">ניהול רישיונות מטיסים ותעודות רפואיות</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">מערכת ניהול רשיונות כטמ"ם אירונאוטיקס</h1>
+              <p className="text-gray-400 text-sm sm:text-base">ניהול רישיונות מטיסי כטמ"ם ותעודות רפואיות</p>
             </div>
             <div className="flex gap-3">
               <motion.button 
@@ -710,7 +723,7 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="lg:col-span-3 bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl overflow-hidden order-2 lg:order-1"
+              className="lg:col-span-3 bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl overflow-hidden order-2 lg:order-2"
             >
               <div className="px-6 py-4 border-b border-gray-700">
                 <h2 className="text-lg font-semibold text-white">רשימת מטיסים</h2>
@@ -832,10 +845,10 @@ export default function Dashboard() {
                         הסמכה
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        תעודה רפואית
+                        תוקף תעודה רפואית
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
-                        רישיון מדריך
+                        תוקף רישיון מדריך
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                         הגבלות
@@ -948,11 +961,11 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
-              className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl order-1 lg:order-2"
+              className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl order-1 lg:order-1"
             >
               <div className="px-6 py-4 border-b border-gray-700">
                 <h2 className="text-lg font-semibold text-white">פגים בקרוב</h2>
-                <p className="text-sm text-gray-400">45 יום קדימה</p>
+                <p className="text-sm text-gray-400">תוקף של 45 ימים ומטה</p>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
@@ -1104,8 +1117,18 @@ export default function Dashboard() {
                 </div>
 
                 <div className="bg-gray-800/40 rounded-xl p-4">
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">קטגוריה</h4>
-                  <p className="text-white">{selectedPilot.category.replace(/&quot;/g, '"')}</p>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">קטגוריות כטמ"ם</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedPilot.categories && selectedPilot.categories.length > 0 ? (
+                      selectedPilot.categories.map((category, index) => (
+                        <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-300">
+                          {category}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-500">לא הוגדרו קטגוריות</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="bg-gray-800/40 rounded-xl p-4">
