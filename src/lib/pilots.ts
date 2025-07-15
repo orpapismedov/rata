@@ -17,6 +17,8 @@ export interface Pilot {
   lastName: string
   email: string
   rataCertification: 'IP' | 'EP' | 'BOTH'
+  rataCertifications: string[] // New field for multiple certifications
+  isSafetyOfficer: boolean // New field for safety officer
   categories: string[]
   healthCertificateExpiry: Date
   isInstructor: boolean
@@ -28,6 +30,29 @@ export interface Pilot {
 }
 
 const COLLECTION_NAME = 'pilots'
+
+// Helper function to convert new certifications array to old format for statistics
+const convertCertificationsToOldFormat = (certifications: string[]): 'IP' | 'EP' | 'BOTH' => {
+  const hasIP = certifications.includes('מטיס פנים')
+  const hasEP = certifications.includes('מטיס חוץ')
+  const hasBoth = certifications.includes('מטיס פנים וחוץ')
+  
+  if (hasBoth) return 'BOTH'
+  if (hasIP && hasEP) return 'BOTH'
+  if (hasIP) return 'IP'
+  if (hasEP) return 'EP'
+  return 'IP' // Default fallback
+}
+
+// Helper function to convert old format to new certifications array
+const convertOldFormatToCertifications = (oldFormat: 'IP' | 'EP' | 'BOTH'): string[] => {
+  switch (oldFormat) {
+    case 'IP': return ['מטיס פנים']
+    case 'EP': return ['מטיס חוץ']
+    case 'BOTH': return ['מטיס פנים וחוץ']
+    default: return ['מטיס פנים']
+  }
+}
 
 // Convert Firestore timestamp to Date
 const timestampToDate = (timestamp: unknown): Date => {
@@ -53,12 +78,24 @@ export const getAllPilots = async (): Promise<Pilot[]> => {
     
     return querySnapshot.docs.map(doc => {
       const data = doc.data()
+      
+      // Backward compatibility: if rataCertifications is missing, convert from old format
+      let rataCertifications = data.rataCertifications
+      if (!rataCertifications && data.rataCertification) {
+        rataCertifications = convertOldFormatToCertifications(data.rataCertification)
+      }
+      
+      // Default values for new fields
+      const isSafetyOfficer = data.isSafetyOfficer !== undefined ? data.isSafetyOfficer : false
+      
       return {
         id: doc.id,
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        rataCertification: data.rataCertification,
+        rataCertification: data.rataCertification || convertCertificationsToOldFormat(rataCertifications || []),
+        rataCertifications: rataCertifications || ['מטיס פנים'],
+        isSafetyOfficer: isSafetyOfficer,
         categories: data.categories || [data.category].filter(Boolean), // Handle backward compatibility
         healthCertificateExpiry: timestampToDate(data.healthCertificateExpiry),
         isInstructor: data.isInstructor,
@@ -83,6 +120,8 @@ export const addPilot = async (pilot: Omit<Pilot, 'id' | 'createdAt' | 'updatedA
       lastName: pilot.lastName,
       email: pilot.email,
       rataCertification: pilot.rataCertification,
+      rataCertifications: pilot.rataCertifications || convertOldFormatToCertifications(pilot.rataCertification),
+      isSafetyOfficer: pilot.isSafetyOfficer || false,
       categories: pilot.categories,
       healthCertificateExpiry: dateToTimestamp(pilot.healthCertificateExpiry),
       isInstructor: pilot.isInstructor,
@@ -113,6 +152,8 @@ export const updatePilot = async (id: string, pilot: Omit<Pilot, 'id' | 'created
       lastName: pilot.lastName,
       email: pilot.email,
       rataCertification: pilot.rataCertification,
+      rataCertifications: pilot.rataCertifications || convertOldFormatToCertifications(pilot.rataCertification),
+      isSafetyOfficer: pilot.isSafetyOfficer || false,
       categories: pilot.categories,
       healthCertificateExpiry: dateToTimestamp(pilot.healthCertificateExpiry),
       isInstructor: pilot.isInstructor,
@@ -148,6 +189,8 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'כהן',
         email: 'yossi.cohen@example.com',
         rataCertification: 'IP',
+        rataCertifications: ['מטיס פנים'],
+        isSafetyOfficer: false,
         categories: ['כנף קבועה 25-2000 קג'],
         healthCertificateExpiry: new Date('2025-03-15'),
         isInstructor: true,
@@ -159,6 +202,8 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'לוי',
         email: 'sara.levi@example.com',
         rataCertification: 'EP',
+        rataCertifications: ['מטיס חוץ'],
+        isSafetyOfficer: true,
         categories: ['רחפן 0-25 קג'],
         healthCertificateExpiry: new Date('2025-02-10'),
         isInstructor: false,
@@ -169,6 +214,8 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'אברהם',
         email: 'david.abraham@example.com',
         rataCertification: 'BOTH',
+        rataCertifications: ['מטיס פנים וחוץ'],
+        isSafetyOfficer: true,
         categories: ['עילוי ממונע VTOL', 'כנף קבועה 25-2000 קג'],
         healthCertificateExpiry: new Date('2025-01-30'),
         isInstructor: true,
@@ -180,6 +227,8 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'ישראלי',
         email: 'michal.israeli@example.com',
         rataCertification: 'IP',
+        rataCertifications: ['מטיס פנים', 'בתהליך הוצאת רשיון חוץ'],
+        isSafetyOfficer: false,
         categories: ['כנף קבועה דו מנועי 25-2000 קג', 'כנף קבועה 25-2000 קג'],
         healthCertificateExpiry: new Date('2024-12-01'),
         isInstructor: true,
@@ -191,6 +240,8 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'שמש',
         email: 'avi.shemesh@example.com',
         rataCertification: 'EP',
+        rataCertifications: ['מטיס חוץ'],
+        isSafetyOfficer: false,
         categories: ['רחפן 25-2000 קג', 'רחפן 0-25 קג'],
         healthCertificateExpiry: new Date('2025-08-20'),
         isInstructor: true,

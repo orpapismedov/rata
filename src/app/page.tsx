@@ -121,6 +121,10 @@ function PilotForm({
   const [lastName, setLastName] = useState(initialData?.lastName || '')
   const [email, setEmail] = useState(initialData?.email || '')
   const [rataCertification, setRataCertification] = useState<'IP' | 'EP' | 'BOTH'>(initialData?.rataCertification || 'IP')
+  const [rataCertifications, setRataCertifications] = useState<string[]>(
+    initialData?.rataCertifications || ['מטיס פנים']
+  )
+  const [isSafetyOfficer, setIsSafetyOfficer] = useState(initialData?.isSafetyOfficer || false)
   const [categories, setCategories] = useState<string[]>(initialData?.categories || [])
   const [healthCertificateExpiry, setHealthCertificateExpiry] = useState(
     initialData?.healthCertificateExpiry 
@@ -138,6 +142,44 @@ function PilotForm({
 
   const isEditing = !!initialData
 
+  // Available certification options
+  const certificationOptions = [
+    'מטיס פנים',
+    'מטיס חוץ', 
+    'מטיס פנים וחוץ',
+    'בתהליך הוצאת רשיון פנים',
+    'בתהליך הוצאת רשיון חוץ'
+  ]
+
+  // Validation rules for conflicting certifications
+  const hasConflictingCertifications = () => {
+    const hasIP = rataCertifications.includes('מטיס פנים')
+    const hasIPInProgress = rataCertifications.includes('בתהליך הוצאת רשיון פנים')
+    const hasEP = rataCertifications.includes('מטיס חוץ')
+    const hasEPInProgress = rataCertifications.includes('בתהליך הוצאת רשיון חוץ')
+    
+    return (hasIP && hasIPInProgress) || (hasEP && hasEPInProgress)
+  }
+
+  // Calculate rataCertification from rataCertifications for backward compatibility
+  const calculateRataCertification = (certifications: string[]): 'IP' | 'EP' | 'BOTH' => {
+    const hasIP = certifications.includes('מטיס פנים')
+    const hasEP = certifications.includes('מטיס חוץ')
+    const hasBoth = certifications.includes('מטיס פנים וחוץ')
+    
+    if (hasBoth) return 'BOTH'
+    if (hasIP && hasEP) return 'BOTH'
+    if (hasIP) return 'IP'
+    if (hasEP) return 'EP'
+    return 'IP' // Default fallback
+  }
+
+  // Update rataCertification when rataCertifications changes
+  useEffect(() => {
+    const newRataCertification = calculateRataCertification(rataCertifications)
+    setRataCertification(newRataCertification)
+  }, [rataCertifications])
+
   // Calculate max date for instructor license (2 years from today)
   const getMaxInstructorDate = () => {
     const today = new Date()
@@ -153,11 +195,26 @@ function PilotForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate no conflicting certifications
+    if (hasConflictingCertifications()) {
+      alert('לא ניתן לבחור גם רישיון קיים וגם "בתהליך הוצאת רישיון" מאותו סוג')
+      return
+    }
+
+    // Ensure at least one certification is selected
+    if (rataCertifications.length === 0) {
+      alert('יש לבחור לפחות הסמכה אחת')
+      return
+    }
+
     onSubmit({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
-      rataCertification,
+      rataCertification: calculateRataCertification(rataCertifications),
+      rataCertifications: rataCertifications,
+      isSafetyOfficer: isSafetyOfficer,
       categories,
       healthCertificateExpiry: new Date(healthCertificateExpiry),
       isInstructor,
@@ -236,17 +293,60 @@ function PilotForm({
           
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-300">
-              הסמכת רתא
+              הסמכת רתא (ניתן לבחור מספר)
             </label>
-            <select
-              value={rataCertification}
-              onChange={e => setRataCertification(e.target.value as 'IP' | 'EP' | 'BOTH')}
-              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            >
-              <option value="IP">מטיס פנים (IP)</option>
-              <option value="EP">מטיס חוץ (EP)</option>
-              <option value="BOTH">שניהם</option>
-            </select>
+            <div className="space-y-2">
+              {certificationOptions.map((certOption) => (
+                <label key={certOption} className="flex items-center space-x-3 space-x-reverse">
+                  <input
+                    type="checkbox"
+                    checked={rataCertifications.includes(certOption)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setRataCertifications([...rataCertifications, certOption])
+                      } else {
+                        setRataCertifications(rataCertifications.filter(c => c !== certOption))
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm text-gray-300">{certOption}</span>
+                </label>
+              ))}
+            </div>
+            {hasConflictingCertifications() && (
+              <p className="text-xs text-red-400">
+                ⚠️ לא ניתן לבחור גם רישיון קיים וגם "בתהליך הוצאת רישיון" מאותו סוג
+              </p>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-300">
+              האם קצין בטיחות?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="isSafetyOfficer"
+                  checked={isSafetyOfficer === true}
+                  onChange={() => setIsSafetyOfficer(true)}
+                  className="ml-2 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-white">כן</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="isSafetyOfficer"
+                  checked={isSafetyOfficer === false}
+                  onChange={() => setIsSafetyOfficer(false)}
+                  className="ml-2 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-white">לא</span>
+              </label>
+            </div>
           </div>
           
           <div className="space-y-2">
@@ -416,6 +516,10 @@ export default function Dashboard() {
       try {
         setLoading(true)
         const pilotsData = await getAllPilots()
+        console.log('Loaded pilots data:', pilotsData) // Debug log
+        pilotsData.forEach(pilot => {
+          console.log(`${pilot.firstName} ${pilot.lastName} - isSafetyOfficer:`, pilot.isSafetyOfficer)
+        })
         setPilots(pilotsData)
         
         // Run automatic email check after loading pilots
@@ -594,6 +698,34 @@ export default function Dashboard() {
     return expirations
   }).sort((a, b) => a.days - b.days)
 
+  const expiredLicenses = pilots.flatMap(pilot => {
+    const expired = []
+    const healthDays = getDaysUntilExpiry(pilot.healthCertificateExpiry)
+    
+    if (healthDays < 0) {
+      expired.push({
+        pilotName: `${pilot.firstName} ${pilot.lastName}`,
+        type: 'תעודה רפואית',
+        days: Math.abs(healthDays),
+        date: pilot.healthCertificateExpiry
+      })
+    }
+    
+    if (pilot.instructorLicenseExpiry) {
+      const instructorDays = getDaysUntilExpiry(pilot.instructorLicenseExpiry)
+      if (instructorDays < 0) {
+        expired.push({
+          pilotName: `${pilot.firstName} ${pilot.lastName}`,
+          type: 'רישיון מדריך',
+          days: Math.abs(instructorDays),
+          date: pilot.instructorLicenseExpiry
+        })
+      }
+    }
+    
+    return expired
+  }).sort((a, b) => b.days - a.days)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden" style={{ direction: 'rtl' }}>
       {/* Animated Background */}
@@ -717,13 +849,13 @@ export default function Dashboard() {
           )}
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
-            {/* Pilots Table */}
+          <div className="space-y-6">
+            {/* Pilots Table - Full Width */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="lg:col-span-3 bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl overflow-hidden order-2 lg:order-2"
+              className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl overflow-hidden"
             >
               <div className="px-6 py-4 border-b border-gray-700">
                 <h2 className="text-lg font-semibold text-white">רשימת מטיסים</h2>
@@ -782,19 +914,33 @@ export default function Dashboard() {
                           </div>
                           
                           <div className="flex flex-wrap gap-1">
-                            {(pilot.rataCertification === 'IP' || pilot.rataCertification === 'BOTH') && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300">
-                                מטיס פנים
+                            {pilot.rataCertifications?.map((cert, index) => (
+                              <span 
+                                key={index}
+                                className={cn(
+                                  "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
+                                  cert.includes('בתהליך') 
+                                    ? "bg-yellow-500/20 text-yellow-300"
+                                    : cert.includes('פנים וחוץ')
+                                    ? "bg-indigo-500/20 text-indigo-300"
+                                    : cert.includes('פנים')
+                                    ? "bg-emerald-500/20 text-emerald-300"
+                                    : cert.includes('חוץ')
+                                    ? "bg-purple-500/20 text-purple-300"
+                                    : "bg-gray-500/20 text-gray-300"
+                                )}
+                              >
+                                {cert}
                               </span>
-                            )}
-                            {(pilot.rataCertification === 'EP' || pilot.rataCertification === 'BOTH') && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300">
-                                מטיס חוץ
-                              </span>
-                            )}
+                            ))}
                             {pilot.isInstructor && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300">
                                 מדריך
+                              </span>
+                            )}
+                            {pilot.isSafetyOfficer === true && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-300">
+                                קב"ט
                               </span>
                             )}
                           </div>
@@ -892,19 +1038,33 @@ export default function Dashboard() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
-                                {(pilot.rataCertification === 'IP' || pilot.rataCertification === 'BOTH') && (
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 whitespace-nowrap">
-                                    מטיס פנים
+                                {pilot.rataCertifications?.map((cert, index) => (
+                                  <span 
+                                    key={index}
+                                    className={cn(
+                                      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap",
+                                      cert.includes('בתהליך') 
+                                        ? "bg-yellow-500/20 text-yellow-300"
+                                        : cert.includes('פנים וחוץ')
+                                        ? "bg-indigo-500/20 text-indigo-300"
+                                        : cert.includes('פנים')
+                                        ? "bg-emerald-500/20 text-emerald-300"
+                                        : cert.includes('חוץ')
+                                        ? "bg-purple-500/20 text-purple-300"
+                                        : "bg-gray-500/20 text-gray-300"
+                                    )}
+                                  >
+                                    {cert}
                                   </span>
-                                )}
-                                {(pilot.rataCertification === 'EP' || pilot.rataCertification === 'BOTH') && (
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300 whitespace-nowrap">
-                                    מטיס חוץ
-                                  </span>
-                                )}
+                                ))}
                                 {pilot.isInstructor && (
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 whitespace-nowrap">
                                     מדריך
+                                  </span>
+                                )}
+                                {pilot.isSafetyOfficer === true && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/20 text-orange-300 whitespace-nowrap">
+                                    קב"ט
                                   </span>
                                 )}
                               </div>
@@ -956,41 +1116,80 @@ export default function Dashboard() {
               </div>
             </motion.div>
 
-            {/* Upcoming Expirations Sidebar */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl order-1 lg:order-1"
-            >
-              <div className="px-6 py-4 border-b border-gray-700">
-                <h2 className="text-lg font-semibold text-white">פגים בקרוב</h2>
-                <p className="text-sm text-gray-400">תוקף של 45 ימים ומטה</p>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  {upcomingExpirations.length === 0 ? (
-                    <div className="text-center py-4">
-                      <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-400">אין פגים בקרוב</p>
-                    </div>
-                  ) : (
-                    upcomingExpirations.slice(0, 5).map((expiration, index) => (
-                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
-                        <div className="p-2 bg-orange-500/20 rounded-lg">
-                          <Clock className="h-4 w-4 text-orange-400" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">{expiration.pilotName}</p>
-                          <p className="text-xs text-gray-400">{expiration.type}</p>
-                          <p className="text-xs text-orange-400">{expiration.days} ימים נותרו</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
+            {/* Status Sections Grid - Below the table */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Upcoming Expirations */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl"
+              >
+                <div className="px-4 py-3 border-b border-gray-700">
+                  <h2 className="text-base font-semibold text-white">פגים בקרוב</h2>
+                  <p className="text-xs text-gray-400">תוקף של 45 ימים ומטה</p>
                 </div>
-              </div>
-            </motion.div>
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {upcomingExpirations.length === 0 ? (
+                      <div className="text-center py-3">
+                        <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+                        <p className="text-xs text-gray-400">אין פגים בקרוב</p>
+                      </div>
+                    ) : (
+                      upcomingExpirations.slice(0, 4).map((expiration, index) => (
+                        <div key={index} className="flex items-center gap-3 p-2 bg-gray-700/30 rounded-lg">
+                          <div className="p-1.5 bg-orange-500/20 rounded-lg">
+                            <Clock className="h-3 w-3 text-orange-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-white truncate">{expiration.pilotName}</p>
+                            <p className="text-xs text-gray-400">{expiration.type}</p>
+                            <p className="text-xs text-orange-400">{expiration.days} ימים נותרו</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Expired Licenses */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+                className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl"
+              >
+                <div className="px-4 py-3 border-b border-gray-700">
+                  <h2 className="text-base font-semibold text-white">רשיונות שפגו</h2>
+                  <p className="text-xs text-gray-400">רשיונות ותעודות שפג תוקפן</p>
+                </div>
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {expiredLicenses.length === 0 ? (
+                      <div className="text-center py-3">
+                        <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+                        <p className="text-xs text-gray-400">אין רשיונות שפגו</p>
+                      </div>
+                    ) : (
+                      expiredLicenses.slice(0, 4).map((expired, index) => (
+                        <div key={index} className="flex items-center gap-3 p-2 bg-gray-700/30 rounded-lg">
+                          <div className="p-1.5 bg-red-500/20 rounded-lg">
+                            <X className="h-3 w-3 text-red-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-white truncate">{expired.pilotName}</p>
+                            <p className="text-xs text-gray-400">{expired.type}</p>
+                            <p className="text-xs text-red-400">פג לפני {expired.days} ימים</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       </main>
@@ -1098,19 +1297,33 @@ export default function Dashboard() {
                 <div className="bg-gray-800/40 rounded-xl p-4">
                   <h4 className="text-sm font-medium text-gray-400 mb-2">הסמכת רתא</h4>
                   <div className="flex flex-wrap gap-2">
-                    {(selectedPilot.rataCertification === 'IP' || selectedPilot.rataCertification === 'BOTH') && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-500/20 text-emerald-300">
-                        מטיס פנים
+                    {selectedPilot.rataCertifications?.map((cert, index) => (
+                      <span 
+                        key={index}
+                        className={cn(
+                          "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium",
+                          cert.includes('בתהליך') 
+                            ? "bg-yellow-500/20 text-yellow-300"
+                            : cert.includes('פנים וחוץ')
+                            ? "bg-indigo-500/20 text-indigo-300"
+                            : cert.includes('פנים')
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : cert.includes('חוץ')
+                            ? "bg-purple-500/20 text-purple-300"
+                            : "bg-gray-500/20 text-gray-300"
+                        )}
+                      >
+                        {cert}
                       </span>
-                    )}
-                    {(selectedPilot.rataCertification === 'EP' || selectedPilot.rataCertification === 'BOTH') && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-500/20 text-purple-300">
-                        מטיס חוץ
-                      </span>
-                    )}
+                    ))}
                     {selectedPilot.isInstructor && (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500/20 text-blue-300">
                         מדריך
+                      </span>
+                    )}
+                    {selectedPilot.isSafetyOfficer === true && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-500/20 text-orange-300">
+                        קצין בטיחות
                       </span>
                     )}
                   </div>
