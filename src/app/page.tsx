@@ -30,7 +30,6 @@ import {
 import EmailNotificationPanel from '@/components/EmailNotificationPanel'
 import AdminLogin from '@/components/AdminLogin'
 import AdminProtected from '@/components/AdminProtected'
-import { runAutomaticEmailCheck } from '@/lib/autoEmail'
 import { isAdminLoggedIn } from '@/lib/auth'
 
 interface DashboardCard {
@@ -157,8 +156,15 @@ function PilotForm({
     const hasIPInProgress = rataCertifications.includes('בתהליך הוצאת רשיון פנים')
     const hasEP = rataCertifications.includes('מטיס חוץ')
     const hasEPInProgress = rataCertifications.includes('בתהליך הוצאת רשיון חוץ')
+    const hasBoth = rataCertifications.includes('מטיס פנים וחוץ')
     
-    return (hasIP && hasIPInProgress) || (hasEP && hasEPInProgress)
+    // Original conflicts: Same type existing + in progress
+    const sameTypeConflicts = (hasIP && hasIPInProgress) || (hasEP && hasEPInProgress)
+    
+    // New conflicts: "מטיס פנים וחוץ" with any "בתהליך" certification
+    const bothWithInProgress = hasBoth && (hasIPInProgress || hasEPInProgress)
+    
+    return sameTypeConflicts || bothWithInProgress
   }
 
   // Calculate rataCertification from rataCertifications for backward compatibility
@@ -198,7 +204,7 @@ function PilotForm({
     
     // Validate no conflicting certifications
     if (hasConflictingCertifications()) {
-      alert('לא ניתן לבחור גם רישיון קיים וגם "בתהליך הוצאת רישיון" מאותו סוג')
+      alert('לא ניתן לבחור גם רישיון קיים וגם "בתהליך הוצאת רישיון" מאותו סוג, או "מטיס פנים וחוץ" יחד עם כל "בתהליך הוצאת רישיון"')
       return
     }
 
@@ -316,7 +322,7 @@ function PilotForm({
             </div>
             {hasConflictingCertifications() && (
               <p className="text-xs text-red-400">
-                ⚠️ לא ניתן לבחור גם רישיון קיים וגם "בתהליך הוצאת רישיון" מאותו סוג
+                ⚠️ לא ניתן לבחור גם רישיון קיים וגם "בתהליך הוצאת רישיון" מאותו סוג, או "מטיס פנים וחוץ" יחד עם כל "בתהליך הוצאת רישיון"
               </p>
             )}
           </div>
@@ -522,10 +528,8 @@ export default function Dashboard() {
         })
         setPilots(pilotsData)
         
-        // Run automatic email check after loading pilots
-        setTimeout(() => {
-          runAutomaticEmailCheck(pilotsData)
-        }, 2000) // Wait 2 seconds after loading to ensure everything is ready
+        // Automatic email reminders now handled by GitHub Actions
+        // No need to run frontend email checks anymore
         
       } catch (error) {
         console.error('Error loading pilots:', error)
