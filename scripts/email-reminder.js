@@ -25,6 +25,7 @@ function initializeFirebase() {
     return getFirestore(app);
   } catch (error) {
     console.error('Firebase initialization error:', error);
+    console.error('Private key format:', process.env.FIREBASE_PRIVATE_KEY?.substring(0, 50) + '...');
     throw error;
   }
 }
