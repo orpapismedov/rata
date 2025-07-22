@@ -398,6 +398,9 @@ function PilotForm({
               required
               className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
+            <p className="text-xs text-gray-400">
+              ניתן להזין תאריך עבר עבור תעודות שפגו
+            </p>
           </div>
           
           <div className="space-y-2">
@@ -437,13 +440,11 @@ function PilotForm({
                 type="date"
                 value={instructorLicenseExpiry}
                 onChange={e => setInstructorLicenseExpiry(e.target.value)}
-                min={getTodayDate()}
-                max={getMaxInstructorDate()}
                 required={isInstructor}
                 className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
               <p className="text-xs text-gray-400">
-                תאריך מקסימלי: {getMaxInstructorDate()} (שנתיים מהיום)
+                ניתן להזין תאריך עבר עבור רישיונות שפגו
               </p>
             </div>
           )}
