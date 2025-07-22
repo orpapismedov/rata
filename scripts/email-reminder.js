@@ -47,7 +47,13 @@ function getDaysUntilExpiry(expiryDate) {
 // Send email via EmailJS REST API
 async function sendEmailViaEmailJS(emailData) {
   try {
-    const response = await axios.post('https://api.emailjs.com/api/v1.0/email/send', {
+    console.log('🔍 EmailJS Configuration Check:');
+    console.log('- Service ID:', process.env.EMAILJS_SERVICE_ID ? '✅ Set' : '❌ Missing');
+    console.log('- Template ID:', process.env.EMAILJS_TEMPLATE_ID ? '✅ Set' : '❌ Missing');
+    console.log('- Public Key:', process.env.EMAILJS_PUBLIC_KEY ? '✅ Set' : '❌ Missing');
+    console.log('- Private Key:', process.env.EMAILJS_PRIVATE_KEY ? '✅ Set' : '❌ Missing');
+    
+    const emailPayload = {
       service_id: process.env.EMAILJS_SERVICE_ID,
       template_id: process.env.EMAILJS_TEMPLATE_ID,
       user_id: process.env.EMAILJS_PUBLIC_KEY,
@@ -60,11 +66,23 @@ async function sendEmailViaEmailJS(emailData) {
         days_until_expiry: emailData.daysUntilExpiry,
         to_email: emailData.pilotEmail
       }
-    });
+    };
+    
+    console.log('📧 Sending email to:', emailData.pilotEmail);
+    console.log('📧 Email payload:', JSON.stringify(emailPayload, null, 2));
+    
+    const response = await axios.post('https://api.emailjs.com/api/v1.0/email/send', emailPayload);
+    
+    console.log('📧 EmailJS Response Status:', response.status);
+    console.log('📧 EmailJS Response Data:', response.data);
 
     return response.status === 200;
   } catch (error) {
-    console.error('EmailJS error:', error.response?.data || error.message);
+    console.error('❌ EmailJS error details:');
+    console.error('- Error message:', error.message);
+    console.error('- Response status:', error.response?.status);
+    console.error('- Response data:', error.response?.data);
+    console.error('- Full error:', error);
     return false;
   }
 }
