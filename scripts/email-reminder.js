@@ -134,12 +134,16 @@ async function sendEmailToPilotAndManagers(db, emailData, managers) {
   
   // Send to all managers
   if (managers.length > 0) {
-    console.log(`📧 Sending manager notifications for ${emailData.pilotName}`);
+    console.log(`📧 Sending manager notifications for ${emailData.pilotName} to ${managers.length} manager(s)`);
     
     for (const manager of managers) {
+      // Create separate email data for manager with correct recipient
       const managerEmailData = {
-        ...emailData,
-        pilotEmail: manager.email // Change recipient to manager
+        pilotName: emailData.pilotName,
+        pilotEmail: manager.email, // Manager receives the email
+        licenseType: emailData.licenseType,
+        expiryDate: emailData.expiryDate,
+        daysUntilExpiry: emailData.daysUntilExpiry
       };
       
       console.log(`📧 Sending to manager: ${manager.name} (${manager.email})`);
@@ -155,6 +159,8 @@ async function sendEmailToPilotAndManagers(db, emailData, managers) {
       // Small delay between emails
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
+  } else {
+    console.log(`⚠️ No managers found in mailing list - skipping manager notifications`);
   }
   
   return successCount > 0; // Return true if at least one email was sent successfully
@@ -199,6 +205,13 @@ async function checkAndSendReminders() {
   try {
     // Get manager emails for notifications
     const managers = await getManagerEmails(db);
+    
+    if (managers.length === 0) {
+      console.log('⚠️ WARNING: No managers found in mailing list! Manager notifications will be skipped.');
+      console.log('💡 Make sure managers are added via the "ניהול רשימות תפוצה" panel in the web interface.');
+    } else {
+      console.log(`📋 Manager notification system ready with ${managers.length} manager(s)`);
+    }
     
     // Get all pilots
     const pilotsSnapshot = await db.collection('pilots').get();
