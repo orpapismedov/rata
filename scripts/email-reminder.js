@@ -87,6 +87,79 @@ async function sendEmailViaEmailJS(emailData) {
   }
 }
 
+// Get manager emails for notifications
+async function getManagerEmails(db) {
+  try {
+    const managersRef = db.collection('managerEmails');
+    const snapshot = await managersRef.get();
+    
+    const managerEmails = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      managerEmails.push({
+        name: data.name,
+        email: data.email,
+        position: data.position || ''
+      });
+    });
+    
+    console.log(`📋 Found ${managerEmails.length} manager(s) in mailing list`);
+    managerEmails.forEach(manager => {
+      console.log(`   - ${manager.name} (${manager.email}) ${manager.position ? `- ${manager.position}` : ''}`);
+    });
+    
+    return managerEmails;
+  } catch (error) {
+    console.error('Error getting manager emails:', error);
+    return [];
+  }
+}
+
+// Send emails to both pilot and managers
+async function sendEmailToPilotAndManagers(db, emailData, managers) {
+  let successCount = 0;
+  
+  // Send to pilot first
+  console.log(`📧 Sending ${emailData.licenseType} reminder to pilot: ${emailData.pilotEmail}`);
+  const pilotSuccess = await sendEmailViaEmailJS(emailData);
+  if (pilotSuccess) {
+    console.log(`✅ Email sent to pilot: ${emailData.pilotName}`);
+    successCount++;
+  } else {
+    console.log(`❌ Failed to send email to pilot: ${emailData.pilotName}`);
+  }
+  
+  // Small delay between emails
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Send to all managers
+  if (managers.length > 0) {
+    console.log(`📧 Sending manager notifications for ${emailData.pilotName}`);
+    
+    for (const manager of managers) {
+      const managerEmailData = {
+        ...emailData,
+        pilotEmail: manager.email // Change recipient to manager
+      };
+      
+      console.log(`📧 Sending to manager: ${manager.name} (${manager.email})`);
+      const managerSuccess = await sendEmailViaEmailJS(managerEmailData);
+      
+      if (managerSuccess) {
+        console.log(`✅ Manager notification sent to: ${manager.name}`);
+        successCount++;
+      } else {
+        console.log(`❌ Failed to send manager notification to: ${manager.name}`);
+      }
+      
+      // Small delay between emails
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  
+  return successCount > 0; // Return true if at least one email was sent successfully
+}
+
 // Check if reminder was already sent
 async function wasReminderSent(db, pilotId, licenseType, expiryDate) {
   try {
@@ -124,6 +197,9 @@ async function checkAndSendReminders() {
   const today = new Date();
   
   try {
+    // Get manager emails for notifications
+    const managers = await getManagerEmails(db);
+    
     // Get all pilots
     const pilotsSnapshot = await db.collection('pilots').get();
     const pilots = pilotsSnapshot.docs.map(doc => ({
@@ -165,18 +241,16 @@ async function checkAndSendReminders() {
               daysUntilExpiry: healthDaysLeft
             };
             
-            const success = await sendEmailViaEmailJS(emailData);
+            const success = await sendEmailToPilotAndManagers(db, emailData, managers);
             
             if (success) {
               await markReminderSent(db, pilot.id, 'medical', healthExpiry.toISOString().split('T')[0], `${pilot.firstName} ${pilot.lastName}`);
-              console.log(`✅ Medical certificate reminder sent to ${pilot.firstName} ${pilot.lastName}`);
+              console.log(`✅ Medical certificate reminder sent to ${pilot.firstName} ${pilot.lastName} and managers`);
               emailsSent++;
             } else {
               console.log(`❌ Failed to send medical reminder to ${pilot.firstName} ${pilot.lastName}`);
             }
             
-            // Small delay to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 1000));
           } else {
             console.log(`⏭️ Medical reminder already sent to ${pilot.firstName} ${pilot.lastName}`);
           }
@@ -204,18 +278,16 @@ async function checkAndSendReminders() {
               daysUntilExpiry: instructorDaysLeft
             };
             
-            const success = await sendEmailViaEmailJS(emailData);
+            const success = await sendEmailToPilotAndManagers(db, emailData, managers);
             
             if (success) {
               await markReminderSent(db, pilot.id, 'instructor', instructorExpiry.toISOString().split('T')[0], `${pilot.firstName} ${pilot.lastName}`);
-              console.log(`✅ Instructor license reminder sent to ${pilot.firstName} ${pilot.lastName}`);
+              console.log(`✅ Instructor license reminder sent to ${pilot.firstName} ${pilot.lastName} and managers`);
               emailsSent++;
             } else {
               console.log(`❌ Failed to send instructor reminder to ${pilot.firstName} ${pilot.lastName}`);
             }
             
-            // Small delay to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 1000));
           } else {
             console.log(`⏭️ Instructor reminder already sent to ${pilot.firstName} ${pilot.lastName}`);
           }
