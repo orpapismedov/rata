@@ -17,7 +17,8 @@ import {
   Trash2,
   BarChart3,
   Mail,
-  ChevronDown
+  ChevronDown,
+  Search
 } from 'lucide-react'
 import { cn, formatDate, getDaysUntilExpiry, getExpiryStatus } from '@/lib/utils'
 import { 
@@ -514,6 +515,7 @@ export default function Dashboard() {
   const [showEmailPanel, setShowEmailPanel] = useState(false)
   const [showMailingListPanel, setShowMailingListPanel] = useState(false)
   const [showPilotsTable, setShowPilotsTable] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   
   // Check admin status on component mount
@@ -547,6 +549,22 @@ export default function Dashboard() {
   }, [])
   
   const stats = calculateStats(pilots)
+
+  // Filter and sort pilots function
+  const getFilteredAndSortedPilots = () => {
+    return pilots
+      .filter(pilot => {
+        if (!searchTerm) return true
+        const fullName = `${pilot.firstName} ${pilot.lastName}`.toLowerCase()
+        return fullName.includes(searchTerm.toLowerCase())
+      })
+      .sort((a, b) => {
+        // Sort alphabetically by first name, then by last name
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase()
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase()
+        return nameA.localeCompare(nameB, 'he') // Hebrew locale for proper sorting
+      })
+  }
 
   const dashboardCards: DashboardCard[] = [
     {
@@ -883,15 +901,37 @@ export default function Dashboard() {
               className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl overflow-hidden"
             >
               <div className="px-6 py-4 border-b border-gray-700">
-                <button
-                  onClick={() => setShowPilotsTable(!showPilotsTable)}
-                  className="flex items-center justify-between w-full text-right hover:bg-gray-700/30 rounded-lg px-2 py-1 transition-colors"
-                >
-                  <h2 className="text-lg font-semibold text-white">רשימת מטיסים</h2>
-                  <ChevronDown 
-                    className={`h-5 w-5 text-gray-400 transition-transform duration-300 ${showPilotsTable ? 'rotate-180' : ''}`}
-                  />
-                </button>
+                <div className="flex flex-col gap-4">
+                  <button
+                    onClick={() => setShowPilotsTable(!showPilotsTable)}
+                    className="flex items-center justify-between w-full text-right hover:bg-gray-700/30 rounded-lg px-2 py-1 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-semibold text-white">רשימת מטיסים</h2>
+                      {searchTerm && (
+                        <span className="text-sm text-gray-400">
+                          ({getFilteredAndSortedPilots().length} מתוך {pilots.length})
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown 
+                      className={`h-5 w-5 text-gray-400 transition-transform duration-300 ${showPilotsTable ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  
+                  {showPilotsTable && (
+                    <div className="relative">
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="חפש מטיס..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pr-10 pl-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               
               <AnimatePresence>
@@ -905,12 +945,7 @@ export default function Dashboard() {
                     {/* Mobile Cards View */}
                     <div className="block lg:hidden">
                       <div className="space-y-4 p-4">
-                  {pilots
-                    .sort((a, b) => {
-                      if (a.rataCertification === 'IP' && b.rataCertification !== 'IP') return -1
-                      if (b.rataCertification === 'IP' && a.rataCertification !== 'IP') return 1
-                      return 0
-                    })
+                  {getFilteredAndSortedPilots()
                     .map((pilot, index) => {
                       const { healthStatus, healthDays, instructorStatus, instructorDays } = getExpiryDetails(pilot)
                       
@@ -1046,12 +1081,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {pilots
-                      .sort((a, b) => {
-                        if (a.rataCertification === 'IP' && b.rataCertification !== 'IP') return -1
-                        if (b.rataCertification === 'IP' && a.rataCertification !== 'IP') return 1
-                        return 0
-                      })
+                    {getFilteredAndSortedPilots()
                       .map((pilot, index) => {
                         const { healthStatus, healthDays, instructorStatus, instructorDays } = getExpiryDetails(pilot)
                         
@@ -1067,14 +1097,15 @@ export default function Dashboard() {
                               <div className="flex items-center">
                                 <div className="p-2 bg-blue-500/20 rounded-lg ml-3">
                                   <User className="h-4 w-4 text-blue-400" />
-                                </div>                              <div>
-                                <button
-                                  onClick={() => setSelectedPilot(pilot)}
-                                  className="text-sm font-medium text-white hover:text-blue-400 transition-colors cursor-pointer"
-                                >
-                                  {pilot.firstName} {pilot.lastName}
-                                </button>
-                              </div>
+                                </div>
+                                <div>
+                                  <button
+                                    onClick={() => setSelectedPilot(pilot)}
+                                    className="text-sm font-medium text-white hover:text-blue-400 transition-colors cursor-pointer"
+                                  >
+                                    {pilot.firstName} {pilot.lastName}
+                                  </button>
+                                </div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
