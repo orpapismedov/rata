@@ -90,12 +90,16 @@ async function sendEmailViaEmailJS(emailData) {
 // Get manager emails for notifications
 async function getManagerEmails(db) {
   try {
+    console.log('🔍 Querying managerEmails collection...');
     const managersRef = db.collection('managerEmails');
     const snapshot = await managersRef.get();
+    
+    console.log(`📊 Firebase query results: size=${snapshot.size}, empty=${snapshot.empty}`);
     
     const managerEmails = [];
     snapshot.forEach(doc => {
       const data = doc.data();
+      console.log(`📄 Found manager document: ID=${doc.id}, data=`, data);
       managerEmails.push({
         name: data.name,
         email: data.email,
@@ -103,14 +107,12 @@ async function getManagerEmails(db) {
       });
     });
     
-    console.log(`📋 Found ${managerEmails.length} manager(s) in mailing list`);
-    managerEmails.forEach(manager => {
-      console.log(`   - ${manager.name} (${manager.email}) ${manager.position ? `- ${manager.position}` : ''}`);
-    });
+    console.log(`📋 Processed ${managerEmails.length} manager(s) from Firebase`);
     
     return managerEmails;
   } catch (error) {
-    console.error('Error getting manager emails:', error);
+    console.error('❌ Error getting manager emails:', error);
+    console.error('❌ Error details:', error.message);
     return [];
   }
 }
@@ -204,13 +206,19 @@ async function checkAndSendReminders() {
   
   try {
     // Get manager emails for notifications
+    console.log('🔍 Fetching manager emails from Firebase...');
     const managers = await getManagerEmails(db);
+    
+    console.log(`📋 Manager query completed. Found ${managers.length} manager(s)`);
     
     if (managers.length === 0) {
       console.log('⚠️ WARNING: No managers found in mailing list! Manager notifications will be skipped.');
       console.log('💡 Make sure managers are added via the "ניהול רשימות תפוצה" panel in the web interface.');
     } else {
-      console.log(`📋 Manager notification system ready with ${managers.length} manager(s)`);
+      console.log(`📋 Manager notification system ready with ${managers.length} manager(s):`);
+      managers.forEach((manager, index) => {
+        console.log(`   ${index + 1}. ${manager.name} (${manager.email}) ${manager.position ? `- ${manager.position}` : ''}`);
+      });
     }
     
     // Get all pilots
