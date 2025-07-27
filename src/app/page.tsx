@@ -16,7 +16,8 @@ import {
   Edit,
   Trash2,
   BarChart3,
-  Mail
+  Mail,
+  ChevronDown
 } from 'lucide-react'
 import { cn, formatDate, getDaysUntilExpiry, getExpiryStatus } from '@/lib/utils'
 import { 
@@ -512,6 +513,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [showEmailPanel, setShowEmailPanel] = useState(false)
   const [showMailingListPanel, setShowMailingListPanel] = useState(false)
+  const [showPilotsTable, setShowPilotsTable] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   
   // Check admin status on component mount
@@ -800,6 +802,7 @@ export default function Dashboard() {
                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
                 {showStats ? 'הסתר סטטיסטיקה' : 'סטטיסטיקה'}
               </motion.button>
+              {/* Hidden on mobile - Email notifications button */}
               <motion.button 
                 onClick={() => {
                   if (!isAdminLoggedIn()) {
@@ -808,7 +811,7 @@ export default function Dashboard() {
                   }
                   setShowEmailPanel(true)
                 }}
-                className="group bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2 text-sm sm:text-base"
+                className="group bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl items-center gap-2 text-sm sm:text-base hidden sm:flex"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -880,12 +883,28 @@ export default function Dashboard() {
               className="bg-gray-800/40 backdrop-blur-sm border border-gray-700 rounded-xl overflow-hidden"
             >
               <div className="px-6 py-4 border-b border-gray-700">
-                <h2 className="text-lg font-semibold text-white">רשימת מטיסים</h2>
+                <button
+                  onClick={() => setShowPilotsTable(!showPilotsTable)}
+                  className="flex items-center justify-between w-full text-right hover:bg-gray-700/30 rounded-lg px-2 py-1 transition-colors"
+                >
+                  <h2 className="text-lg font-semibold text-white">רשימת מטיסים</h2>
+                  <ChevronDown 
+                    className={`h-5 w-5 text-gray-400 transition-transform duration-300 ${showPilotsTable ? 'rotate-180' : ''}`}
+                  />
+                </button>
               </div>
               
-              {/* Mobile Cards View */}
-              <div className="block lg:hidden">
-                <div className="space-y-4 p-4">
+              <AnimatePresence>
+                {showPilotsTable && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {/* Mobile Cards View */}
+                    <div className="block lg:hidden">
+                      <div className="space-y-4 p-4">
                   {pilots
                     .sort((a, b) => {
                       if (a.rataCertification === 'IP' && b.rataCertification !== 'IP') return -1
@@ -1001,8 +1020,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Desktop Table View */}
-              <div className="hidden lg:block overflow-x-auto">
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-800/60">
                     <tr>
@@ -1136,6 +1155,9 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             {/* Status Sections Grid - Below the table */}
