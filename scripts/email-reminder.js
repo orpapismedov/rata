@@ -199,7 +199,7 @@ async function markReminderSent(db, pilotId, licenseType, expiryDate, pilotName)
 
 // Main email checking function
 async function checkAndSendReminders() {
-  console.log('🔍 Starting daily email reminder check...');
+  console.log('🔍 Starting daily email reminder check... [DEBUG VERSION]');
   
   const db = initializeFirebase();
   const today = new Date();
