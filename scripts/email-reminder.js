@@ -242,6 +242,13 @@ async function checkAndSendReminders() {
       
       console.log(`👤 Checking pilot: ${pilot.firstName} ${pilot.lastName}`);
       
+      // Debug: Log all pilot properties related to small fixed wing
+      console.log(`🔍 Debug - Small Fixed Wing Data:`, {
+        hasSmallFixedWingLicense: pilot.hasSmallFixedWingLicense,
+        smallFixedWingLicenseExpiry: pilot.smallFixedWingLicenseExpiry,
+        allKeys: Object.keys(pilot).filter(key => key.toLowerCase().includes('small') || key.toLowerCase().includes('fixed') || key.toLowerCase().includes('wing'))
+      });
+      
       // Check medical certificate - exactly 45 days before expiry
       if (pilot.healthCertificateExpiry) {
         const healthExpiry = new Date(pilot.healthCertificateExpiry.seconds * 1000);
@@ -319,7 +326,16 @@ async function checkAndSendReminders() {
       
       // Check small fixed wing license - exactly 45 days before expiry
       if (pilot.hasSmallFixedWingLicense && pilot.smallFixedWingLicenseExpiry) {
-        const smallFixedWingExpiry = new Date(pilot.smallFixedWingLicenseExpiry.seconds * 1000);
+        // Handle both Firebase timestamp and JavaScript Date objects
+        let smallFixedWingExpiry;
+        if (pilot.smallFixedWingLicenseExpiry.seconds) {
+          // Firebase timestamp
+          smallFixedWingExpiry = new Date(pilot.smallFixedWingLicenseExpiry.seconds * 1000);
+        } else {
+          // JavaScript Date object or string
+          smallFixedWingExpiry = new Date(pilot.smallFixedWingLicenseExpiry);
+        }
+        
         const smallFixedWingDaysLeft = getDaysUntilExpiry(smallFixedWingExpiry);
         
         console.log(`✈️ Small fixed wing license expires: ${smallFixedWingExpiry.toLocaleDateString('he-IL')} (${smallFixedWingDaysLeft} days left)`);
@@ -352,6 +368,8 @@ async function checkAndSendReminders() {
             console.log(`⏭️ Small fixed wing reminder already sent to ${pilot.firstName} ${pilot.lastName}`);
           }
         }
+      } else {
+        console.log(`ℹ️ No small fixed wing license or expiry date for ${pilot.firstName} ${pilot.lastName}`);
       }
     }
     
