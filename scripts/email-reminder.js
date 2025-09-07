@@ -242,12 +242,15 @@ async function checkAndSendReminders() {
       
       console.log(`👤 Checking pilot: ${pilot.firstName} ${pilot.lastName}`);
       
-      // Debug: Log all pilot properties related to small fixed wing
-      console.log(`🔍 Debug - Small Fixed Wing Data:`, {
-        hasSmallFixedWingLicense: pilot.hasSmallFixedWingLicense,
-        smallFixedWingLicenseExpiry: pilot.smallFixedWingLicenseExpiry,
-        allKeys: Object.keys(pilot).filter(key => key.toLowerCase().includes('small') || key.toLowerCase().includes('fixed') || key.toLowerCase().includes('wing'))
-      });
+      // Debug: Check if this is אור פפיסמדוב and log detailed data
+      if (pilot.firstName === 'אור' && pilot.lastName === 'פפיסמדוב') {
+        console.log(`🔍 DETAILED DEBUG for אור פפיסמדוב:`, {
+          hasSmallFixedWingLicense: pilot.hasSmallFixedWingLicense,
+          smallFixedWingLicenseExpiry: pilot.smallFixedWingLicenseExpiry,
+          allPilotKeys: Object.keys(pilot),
+          smallWingKeys: Object.keys(pilot).filter(key => key.toLowerCase().includes('small') || key.toLowerCase().includes('fixed') || key.toLowerCase().includes('wing'))
+        });
+      }
       
       // Check medical certificate - exactly 45 days before expiry
       if (pilot.healthCertificateExpiry) {
