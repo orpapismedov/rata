@@ -42,7 +42,7 @@ export const isEmailJSConfigured = (): boolean => {
 export interface EmailData {
   pilotName: string
   pilotEmail: string
-  licenseType: 'medical' | 'instructor'
+  licenseType: 'medical' | 'instructor' | 'smallFixedWing'
   expiryDate: string
   daysUntilExpiry: number
 }
@@ -58,7 +58,9 @@ export const sendExpiryReminder = async (data: EmailData): Promise<boolean> => {
     const templateParams = {
       to_name: data.pilotName,
       to_email: data.pilotEmail,
-      certificate_type: data.licenseType === 'medical' ? 'תעודה רפואית' : 'רישיון מדריך',
+      certificate_type: data.licenseType === 'medical' ? 'תעודה רפואית' : 
+                       data.licenseType === 'instructor' ? 'רישיון מדריך' : 
+                       'רישיון כנף קבועה 0-25 קג',
       expiry_date: data.expiryDate,
       days_until_expiry: data.daysUntilExpiry,
       from_name: 'מערכת ניהול רישיונות UAV'
@@ -117,10 +119,12 @@ export const checkAndSendReminders = async (pilots: any[]): Promise<void> => {
 }
 
 // Manual send reminder for a specific pilot
-export const sendManualReminder = async (pilot: any, licenseType: 'medical' | 'instructor'): Promise<boolean> => {
+export const sendManualReminder = async (pilot: any, licenseType: 'medical' | 'instructor' | 'smallFixedWing'): Promise<boolean> => {
   const expiryDate = licenseType === 'medical' 
     ? new Date(pilot.healthCertificateExpiry)
-    : new Date(pilot.instructorLicenseExpiry)
+    : licenseType === 'instructor'
+    ? new Date(pilot.instructorLicenseExpiry)
+    : new Date(pilot.smallFixedWingLicenseExpiry)
   
   const today = new Date()
   const daysLeft = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))

@@ -7,7 +7,7 @@ const SENT_REMINDERS_KEY = 'sent-reminders'
 
 interface SentReminder {
   pilotId: string
-  licenseType: 'medical' | 'instructor'
+  licenseType: 'medical' | 'instructor' | 'smallFixedWing'
   expiryDate: string
   dateSent: string
 }
@@ -19,7 +19,7 @@ const getSentReminders = (): SentReminder[] => {
 }
 
 // Add a reminder to the sent list
-const addSentReminder = (pilotId: string, licenseType: 'medical' | 'instructor', expiryDate: Date): void => {
+const addSentReminder = (pilotId: string, licenseType: 'medical' | 'instructor' | 'smallFixedWing', expiryDate: Date): void => {
   const sentReminders = getSentReminders()
   const newReminder: SentReminder = {
     pilotId,
@@ -33,7 +33,7 @@ const addSentReminder = (pilotId: string, licenseType: 'medical' | 'instructor',
 }
 
 // Check if reminder was already sent for this pilot and license
-const wasReminderSent = (pilotId: string, licenseType: 'medical' | 'instructor', expiryDate: Date): boolean => {
+const wasReminderSent = (pilotId: string, licenseType: 'medical' | 'instructor' | 'smallFixedWing', expiryDate: Date): boolean => {
   const sentReminders = getSentReminders()
   return sentReminders.some(reminder => 
     reminder.pilotId === pilotId && 
@@ -137,6 +137,44 @@ export const checkAndSendSingleReminders = async (pilots: Pilot[]): Promise<void
           }
         } else {
           console.log(`⏭️ Instructor reminder already sent to ${pilot.firstName} ${pilot.lastName}`)
+        }
+      }
+    }
+
+    // Check small fixed wing license - exactly 45 days before expiry
+    if (pilot.hasSmallFixedWingLicense && pilot.smallFixedWingLicenseExpiry) {
+      const smallFixedWingExpiry = new Date(pilot.smallFixedWingLicenseExpiry)
+      const smallFixedWingDaysLeft = Math.ceil((smallFixedWingExpiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      
+      console.log(`✈️ Small fixed wing license expires: ${smallFixedWingExpiry.toLocaleDateString('he-IL')} (${smallFixedWingDaysLeft} days left)`)
+      
+      if (smallFixedWingDaysLeft === 45) {
+        console.log(`🎯 Small fixed wing license expires in exactly 45 days!`)
+        
+        if (!wasReminderSent(pilot.id, 'smallFixedWing', smallFixedWingExpiry)) {
+          console.log(`📧 Sending small fixed wing reminder to ${pilot.email}`)
+          try {
+            const { sendExpiryReminder } = await import('./email')
+            
+            const success = await sendExpiryReminder({
+              pilotName: `${pilot.firstName} ${pilot.lastName}`,
+              pilotEmail: pilot.email,
+              licenseType: 'smallFixedWing',
+              expiryDate: smallFixedWingExpiry.toLocaleDateString('he-IL'),
+              daysUntilExpiry: smallFixedWingDaysLeft
+            })
+            
+            if (success) {
+              addSentReminder(pilot.id, 'smallFixedWing', smallFixedWingExpiry)
+              console.log(`✅ Small fixed wing license reminder sent to ${pilot.firstName} ${pilot.lastName}`)
+            } else {
+              console.log(`❌ Failed to send small fixed wing reminder to ${pilot.firstName} ${pilot.lastName}`)
+            }
+          } catch (error) {
+            console.error(`❌ Error sending small fixed wing reminder to ${pilot.firstName} ${pilot.lastName}:`, error)
+          }
+        } else {
+          console.log(`⏭️ Small fixed wing reminder already sent to ${pilot.firstName} ${pilot.lastName}`)
         }
       }
     }

@@ -6,11 +6,31 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('he-IL', {
     year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   }).format(date)
+}
+
+// Convert DD/MM/YYYY to YYYY-MM-DD for HTML input
+export function dateToInputValue(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
+// Convert YYYY-MM-DD from HTML input to Date
+export function inputValueToDate(value: string): Date {
+  return new Date(value)
+}
+
+// Format date for display in DD/MM/YYYY format
+export function formatDateForInput(dateString: string): string {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
 }
 
 export function getDaysUntilExpiry(expiryDate: Date): number {

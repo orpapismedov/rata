@@ -20,6 +20,8 @@ export interface Pilot {
   rataCertifications: string[] // New field for multiple certifications
   isSafetyOfficer: boolean // New field for safety officer
   categories: string[]
+  hasSmallFixedWingLicense: boolean // New field for 0-25kg fixed wing license
+  smallFixedWingLicenseExpiry?: Date // New field for 0-25kg license expiry
   healthCertificateExpiry: Date
   isInstructor: boolean
   instructorLicenseExpiry?: Date
@@ -88,6 +90,41 @@ export const getAllPilots = async (): Promise<Pilot[]> => {
       // Default values for new fields
       const isSafetyOfficer = data.isSafetyOfficer !== undefined ? data.isSafetyOfficer : false
       
+      // Migration logic for small fixed wing license
+      let hasSmallFixedWingLicense = data.hasSmallFixedWingLicense || false
+      let smallFixedWingLicenseExpiry = data.smallFixedWingLicenseExpiry ? timestampToDate(data.smallFixedWingLicenseExpiry) : undefined
+      
+      // If pilot has "כנף קבועה 0-25 קג" in categories, migrate to new license structure
+      const categories = data.categories || [data.category].filter(Boolean)
+      if (categories.includes('כנף קבועה 0-25 קג')) {
+        hasSmallFixedWingLicense = true
+        if (!smallFixedWingLicenseExpiry) {
+          smallFixedWingLicenseExpiry = new Date() // Default to today as per requirement
+        }
+        // Remove from categories array
+        const updatedCategories = categories.filter((cat: string) => cat !== 'כנף קבועה 0-25 קג')
+        
+        return {
+          id: doc.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          rataCertification: data.rataCertification || convertCertificationsToOldFormat(rataCertifications || []),
+          rataCertifications: rataCertifications || ['מטיס פנים'],
+          isSafetyOfficer: isSafetyOfficer,
+          categories: updatedCategories,
+          hasSmallFixedWingLicense: hasSmallFixedWingLicense,
+          smallFixedWingLicenseExpiry: smallFixedWingLicenseExpiry,
+          healthCertificateExpiry: timestampToDate(data.healthCertificateExpiry),
+          isInstructor: data.isInstructor,
+          instructorLicenseExpiry: data.instructorLicenseExpiry ? timestampToDate(data.instructorLicenseExpiry) : undefined,
+          restrictions: data.restrictions,
+          customRestrictions: data.customRestrictions,
+          createdAt: timestampToDate(data.createdAt),
+          updatedAt: data.updatedAt ? timestampToDate(data.updatedAt) : undefined
+        } as Pilot
+      }
+      
       return {
         id: doc.id,
         firstName: data.firstName,
@@ -96,7 +133,9 @@ export const getAllPilots = async (): Promise<Pilot[]> => {
         rataCertification: data.rataCertification || convertCertificationsToOldFormat(rataCertifications || []),
         rataCertifications: rataCertifications || ['מטיס פנים'],
         isSafetyOfficer: isSafetyOfficer,
-        categories: data.categories || [data.category].filter(Boolean), // Handle backward compatibility
+        categories: categories,
+        hasSmallFixedWingLicense: hasSmallFixedWingLicense,
+        smallFixedWingLicenseExpiry: smallFixedWingLicenseExpiry,
         healthCertificateExpiry: timestampToDate(data.healthCertificateExpiry),
         isInstructor: data.isInstructor,
         instructorLicenseExpiry: data.instructorLicenseExpiry ? timestampToDate(data.instructorLicenseExpiry) : undefined,
@@ -107,7 +146,7 @@ export const getAllPilots = async (): Promise<Pilot[]> => {
       } as Pilot
     })
   } catch (error) {
-    console.error('Error fetching pilots:', error)
+    console.error('Error getting pilots:', error)
     throw error
   }
 }
@@ -123,6 +162,8 @@ export const addPilot = async (pilot: Omit<Pilot, 'id' | 'createdAt' | 'updatedA
       rataCertifications: pilot.rataCertifications || convertOldFormatToCertifications(pilot.rataCertification),
       isSafetyOfficer: pilot.isSafetyOfficer || false,
       categories: pilot.categories,
+      hasSmallFixedWingLicense: pilot.hasSmallFixedWingLicense || false,
+      smallFixedWingLicenseExpiry: pilot.smallFixedWingLicenseExpiry ? dateToTimestamp(pilot.smallFixedWingLicenseExpiry) : null,
       healthCertificateExpiry: dateToTimestamp(pilot.healthCertificateExpiry),
       isInstructor: pilot.isInstructor,
       instructorLicenseExpiry: pilot.instructorLicenseExpiry ? dateToTimestamp(pilot.instructorLicenseExpiry) : null,
@@ -155,6 +196,8 @@ export const updatePilot = async (id: string, pilot: Omit<Pilot, 'id' | 'created
       rataCertifications: pilot.rataCertifications || convertOldFormatToCertifications(pilot.rataCertification),
       isSafetyOfficer: pilot.isSafetyOfficer || false,
       categories: pilot.categories,
+      hasSmallFixedWingLicense: pilot.hasSmallFixedWingLicense || false,
+      smallFixedWingLicenseExpiry: pilot.smallFixedWingLicenseExpiry ? dateToTimestamp(pilot.smallFixedWingLicenseExpiry) : null,
       healthCertificateExpiry: dateToTimestamp(pilot.healthCertificateExpiry),
       isInstructor: pilot.isInstructor,
       instructorLicenseExpiry: pilot.instructorLicenseExpiry ? dateToTimestamp(pilot.instructorLicenseExpiry) : null,
@@ -191,7 +234,8 @@ export const initializeSampleData = async (): Promise<void> => {
         rataCertification: 'IP',
         rataCertifications: ['מטיס פנים'],
         isSafetyOfficer: false,
-        categories: ['כנף קבועה 25-2000 קג'],
+        categories: ['כנף סובבת 25-2000 קג'],
+        hasSmallFixedWingLicense: false,
         healthCertificateExpiry: new Date('2025-03-15'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2025-06-20'),
@@ -204,7 +248,9 @@ export const initializeSampleData = async (): Promise<void> => {
         rataCertification: 'EP',
         rataCertifications: ['מטיס חוץ'],
         isSafetyOfficer: true,
-        categories: ['רחפן 0-25 קג'],
+        categories: ['רקע 0-25 קג'],
+        hasSmallFixedWingLicense: true,
+        smallFixedWingLicenseExpiry: new Date('2025-09-07'),
         healthCertificateExpiry: new Date('2025-02-10'),
         isInstructor: false,
         restrictions: 'ללא'
@@ -216,7 +262,8 @@ export const initializeSampleData = async (): Promise<void> => {
         rataCertification: 'BOTH',
         rataCertifications: ['מטיס פנים וחוץ'],
         isSafetyOfficer: true,
-        categories: ['עילוי ממונע VTOL', 'כנף קבועה 25-2000 קג'],
+        categories: ['גירוש מחכמתי VTOL', 'כנף סובבת 25-2000 קג'],
+        hasSmallFixedWingLicense: false,
         healthCertificateExpiry: new Date('2025-01-30'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2025-04-15'),
@@ -227,9 +274,10 @@ export const initializeSampleData = async (): Promise<void> => {
         lastName: 'ישראלי',
         email: 'michal.israeli@example.com',
         rataCertification: 'IP',
-        rataCertifications: ['מטיס פנים', 'בתהליך הוצאת רשיון חוץ'],
+        rataCertifications: ['מטיס פנים', 'אופרטור רפואי שירותי חוץ'],
         isSafetyOfficer: false,
-        categories: ['כנף קבועה דו מנועי 25-2000 קג', 'כנף קבועה 25-2000 קג'],
+        categories: ['כנף סובבת לא מאוישת 25-2000 קג', 'כנף סובבת 25-2000 קג'],
+        hasSmallFixedWingLicense: false,
         healthCertificateExpiry: new Date('2024-12-01'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2024-11-15'),
@@ -242,7 +290,9 @@ export const initializeSampleData = async (): Promise<void> => {
         rataCertification: 'EP',
         rataCertifications: ['מטיס חוץ'],
         isSafetyOfficer: false,
-        categories: ['רחפן 25-2000 קג', 'רחפן 0-25 קג'],
+        categories: ['רקע 25-2000 קג', 'רקע 0-25 קג'],
+        hasSmallFixedWingLicense: true,
+        smallFixedWingLicenseExpiry: new Date('2025-09-07'),
         healthCertificateExpiry: new Date('2025-08-20'),
         isInstructor: true,
         instructorLicenseExpiry: new Date('2025-08-10'),

@@ -32,6 +32,7 @@ import {
 import EmailNotificationPanel from '@/components/EmailNotificationPanel'
 import AdminLogin from '@/components/AdminLogin'
 import AdminProtected from '@/components/AdminProtected'
+import CustomDatePicker from '@/components/CustomDatePicker'
 import { isAdminLoggedIn } from '@/lib/auth'
 
 interface DashboardCard {
@@ -112,11 +113,13 @@ function calculateStats(pilots: Pilot[]) {
 function PilotForm({ 
   onSubmit, 
   onClose, 
-  initialData 
+  initialData,
+  isAdmin = false
 }: { 
   onSubmit: (pilot: Omit<Pilot, 'id' | 'createdAt'>) => void, 
   onClose: () => void,
-  initialData?: Pilot
+  initialData?: Pilot,
+  isAdmin?: boolean
 }) {
   const [firstName, setFirstName] = useState(initialData?.firstName || '')
   const [lastName, setLastName] = useState(initialData?.lastName || '')
@@ -127,6 +130,12 @@ function PilotForm({
   )
   const [isSafetyOfficer, setIsSafetyOfficer] = useState(initialData?.isSafetyOfficer || false)
   const [categories, setCategories] = useState<string[]>(initialData?.categories || [])
+  const [hasSmallFixedWingLicense, setHasSmallFixedWingLicense] = useState(initialData?.hasSmallFixedWingLicense || false)
+  const [smallFixedWingLicenseExpiry, setSmallFixedWingLicenseExpiry] = useState(
+    initialData?.smallFixedWingLicenseExpiry 
+      ? initialData.smallFixedWingLicenseExpiry.toISOString().split('T')[0]
+      : ''
+  )
   const [healthCertificateExpiry, setHealthCertificateExpiry] = useState(
     initialData?.healthCertificateExpiry 
       ? initialData.healthCertificateExpiry.toISOString().split('T')[0]
@@ -224,6 +233,8 @@ function PilotForm({
       rataCertifications: rataCertifications,
       isSafetyOfficer: isSafetyOfficer,
       categories,
+      hasSmallFixedWingLicense,
+      smallFixedWingLicenseExpiry: hasSmallFixedWingLicense && smallFixedWingLicenseExpiry ? new Date(smallFixedWingLicenseExpiry) : undefined,
       healthCertificateExpiry: new Date(healthCertificateExpiry),
       isInstructor,
       instructorLicenseExpiry: isInstructor && instructorLicenseExpiry ? new Date(instructorLicenseExpiry) : undefined,
@@ -254,7 +265,9 @@ function PilotForm({
           <X className="w-5 h-5 text-gray-400" />
         </button>
         
-        <h3 className="text-2xl font-bold text-white mb-6 text-center">הוסף מטיס חדש</h3>
+        <h3 className="text-2xl font-bold text-white mb-6 text-center">
+          {isEditing ? 'עריכת מטיס' : 'הוסף מטיס חדש'}
+        </h3>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
@@ -267,8 +280,12 @@ function PilotForm({
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                disabled={isEditing && !isAdmin}
+                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
+              {isEditing && !isAdmin && (
+                <p className="text-xs text-yellow-400">רק מנהל יכול לערוך שם</p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -280,8 +297,12 @@ function PilotForm({
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                disabled={isEditing && !isAdmin}
+                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
+              {isEditing && !isAdmin && (
+                <p className="text-xs text-yellow-400">רק מנהל יכול לערוך שם</p>
+              )}
             </div>
           </div>
           
@@ -294,9 +315,13 @@ function PilotForm({
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              disabled={isEditing && !isAdmin}
               placeholder="pilot@example.com"
-              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
+            {isEditing && !isAdmin && (
+              <p className="text-xs text-yellow-400">רק מנהל יכול לערוך דוא"ל</p>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -305,7 +330,7 @@ function PilotForm({
             </label>
             <div className="space-y-2">
               {certificationOptions.map((certOption) => (
-                <label key={certOption} className="flex items-center space-x-3 space-x-reverse">
+                <label key={certOption} className={`flex items-center space-x-3 space-x-reverse ${isEditing && !isAdmin ? 'opacity-50' : ''}`}>
                   <input
                     type="checkbox"
                     checked={rataCertifications.includes(certOption)}
@@ -316,12 +341,16 @@ function PilotForm({
                         setRataCertifications(rataCertifications.filter(c => c !== certOption))
                       }
                     }}
+                    disabled={isEditing && !isAdmin}
                     className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                   />
                   <span className="text-sm text-gray-300">{certOption}</span>
                 </label>
               ))}
             </div>
+            {isEditing && !isAdmin && (
+              <p className="text-xs text-yellow-400">רק מנהל יכול לערוך הסמכות</p>
+            )}
             {hasConflictingCertifications() && (
               <p className="text-xs text-red-400">
                 ⚠️ לא ניתן לבחור גם רישיון קיים וגם "בתהליך הוצאת רישיון" מאותו סוג, או "מטיס פנים וחוץ" יחד עם כל "בתהליך הוצאת רישיון"
@@ -333,13 +362,14 @@ function PilotForm({
             <label className="block text-sm font-medium text-gray-300">
               האם קצין בטיחות?
             </label>
-            <div className="flex gap-4">
+            <div className={`flex gap-4 ${isEditing && !isAdmin ? 'opacity-50' : ''}`}>
               <label className="flex items-center">
                 <input
                   type="radio"
                   name="isSafetyOfficer"
                   checked={isSafetyOfficer === true}
                   onChange={() => setIsSafetyOfficer(true)}
+                  disabled={isEditing && !isAdmin}
                   className="ml-2 text-blue-500 focus:ring-blue-500"
                 />
                 <span className="text-white">כן</span>
@@ -350,11 +380,15 @@ function PilotForm({
                   name="isSafetyOfficer"
                   checked={isSafetyOfficer === false}
                   onChange={() => setIsSafetyOfficer(false)}
+                  disabled={isEditing && !isAdmin}
                   className="ml-2 text-blue-500 focus:ring-blue-500"
                 />
                 <span className="text-white">לא</span>
               </label>
             </div>
+            {isEditing && !isAdmin && (
+              <p className="text-xs text-yellow-400">רק מנהל יכול לערוך תפקיד קב"ט</p>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -364,13 +398,12 @@ function PilotForm({
             <div className="space-y-2">
               {[
                 'כנף קבועה 25-2000 קג',
-                'כנף קבועה 0-25 קג', 
                 'כנף קבועה דו מנועי 25-2000 קג',
                 'עילוי ממונע VTOL',
                 'רחפן 25-2000 קג',
                 'רחפן 0-25 קג'
               ].map((categoryOption) => (
-                <label key={categoryOption} className="flex items-center space-x-3 space-x-reverse">
+                <label key={categoryOption} className={`flex items-center space-x-3 space-x-reverse ${isEditing && !isAdmin ? 'opacity-50' : ''}`}>
                   <input
                     type="checkbox"
                     checked={categories.includes(categoryOption)}
@@ -381,27 +414,79 @@ function PilotForm({
                         setCategories(categories.filter(c => c !== categoryOption))
                       }
                     }}
+                    disabled={isEditing && !isAdmin}
                     className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                   />
                   <span className="text-sm text-gray-300">{categoryOption}</span>
                 </label>
               ))}
             </div>
+            {isEditing && !isAdmin && (
+              <p className="text-xs text-yellow-400">רק מנהל יכול לערוך קטגוריות</p>
+            )}
           </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-300">
+              האם מחזיק ברישיון כנף קבועה 0-25 ק"ג?
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="hasSmallFixedWingLicense"
+                  checked={hasSmallFixedWingLicense === true}
+                  onChange={() => setHasSmallFixedWingLicense(true)}
+                  className="ml-2 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-white">כן</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="hasSmallFixedWingLicense"
+                  checked={hasSmallFixedWingLicense === false}
+                  onChange={() => setHasSmallFixedWingLicense(false)}
+                  className="ml-2 text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-white">לא</span>
+              </label>
+            </div>
+          </div>
+
+          {hasSmallFixedWingLicense && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                מה תוקף הרישיון?
+              </label>
+              <CustomDatePicker
+                value={smallFixedWingLicenseExpiry}
+                onChange={setSmallFixedWingLicenseExpiry}
+                maxYearsFromNow={2}
+                required={hasSmallFixedWingLicense}
+                placeholder="DD/MM/YYYY"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-400">
+                ניתן להזין תאריך עד 2 שנים מהיום (פורמט: DD/MM/YYYY)
+              </p>
+            </div>
+          )}
           
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-300">
               תוקף תעודה רפואית
             </label>
-            <input
-              type="date"
+            <CustomDatePicker
               value={healthCertificateExpiry}
-              onChange={e => setHealthCertificateExpiry(e.target.value)}
-              required
-              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              onChange={setHealthCertificateExpiry}
+              maxYearsFromNow={4}
+              required={true}
+              placeholder="DD/MM/YYYY"
+              className="w-full"
             />
             <p className="text-xs text-gray-400">
-              ניתן להזין תאריך עבר עבור תעודות שפגו
+              ניתן להזין תאריך עד 4 שנים מהיום (פורמט: DD/MM/YYYY)
             </p>
           </div>
           
@@ -409,13 +494,14 @@ function PilotForm({
             <label className="block text-sm font-medium text-gray-300">
               האם המטיס הוא מדריך מוסמך?
             </label>
-            <div className="flex gap-4">
+            <div className={`flex gap-4 ${isEditing && !isAdmin ? 'opacity-50' : ''}`}>
               <label className="flex items-center">
                 <input
                   type="radio"
                   name="isInstructor"
                   checked={isInstructor === true}
                   onChange={() => setIsInstructor(true)}
+                  disabled={isEditing && !isAdmin}
                   className="ml-2 text-blue-500 focus:ring-blue-500"
                 />
                 <span className="text-white">כן</span>
@@ -426,11 +512,15 @@ function PilotForm({
                   name="isInstructor"
                   checked={isInstructor === false}
                   onChange={() => setIsInstructor(false)}
+                  disabled={isEditing && !isAdmin}
                   className="ml-2 text-blue-500 focus:ring-blue-500"
                 />
                 <span className="text-white">לא</span>
               </label>
             </div>
+            {isEditing && !isAdmin && (
+              <p className="text-xs text-yellow-400">רק מנהל יכול לערוך סטטוס מדריך</p>
+            )}
           </div>
 
           {isInstructor && (
@@ -438,15 +528,16 @@ function PilotForm({
               <label className="block text-sm font-medium text-gray-300">
                 תוקף רישיון מדריך
               </label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={instructorLicenseExpiry}
-                onChange={e => setInstructorLicenseExpiry(e.target.value)}
+                onChange={setInstructorLicenseExpiry}
+                maxYearsFromNow={2}
                 required={isInstructor}
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="DD/MM/YYYY"
+                className="w-full"
               />
               <p className="text-xs text-gray-400">
-                ניתן להזין תאריך עבר עבור רישיונות שפגו
+                ניתן להזין תאריך עד 2 שנים מהיום (פורמט: DD/MM/YYYY)
               </p>
             </div>
           )}
@@ -458,12 +549,16 @@ function PilotForm({
             <select
               value={restrictions}
               onChange={e => setRestrictions(e.target.value as 'ללא' | 'שיגור והנצלה בלבד' | 'אחר')}
-              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              disabled={isEditing && !isAdmin}
+              className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <option value="ללא">ללא</option>
               <option value="שיגור והנצלה בלבד">שיגור והנצלה בלבד</option>
               <option value="אחר">אחר</option>
             </select>
+            {isEditing && !isAdmin && (
+              <p className="text-xs text-yellow-400">רק מנהל יכול לערוך הגבלות</p>
+            )}
           </div>
           
           {restrictions === 'אחר' && (
@@ -474,10 +569,14 @@ function PilotForm({
               <textarea
                 value={customRestrictions}
                 onChange={e => setCustomRestrictions(e.target.value)}
+                disabled={isEditing && !isAdmin}
                 rows={3}
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                 placeholder="הסבר על ההגבלות..."
               />
+              {isEditing && !isAdmin && (
+                <p className="text-xs text-yellow-400">רק מנהל יכול לערוך הגבלות</p>
+              )}
             </div>
           )}
           
@@ -669,6 +768,14 @@ export default function Dashboard() {
     const healthStatus = getExpiryStatus(pilot.healthCertificateExpiry)
     const healthDays = getDaysUntilExpiry(pilot.healthCertificateExpiry)
     
+    let smallFixedWingStatus = null
+    let smallFixedWingDays = null
+    
+    if (pilot.hasSmallFixedWingLicense && pilot.smallFixedWingLicenseExpiry) {
+      smallFixedWingStatus = getExpiryStatus(pilot.smallFixedWingLicenseExpiry)
+      smallFixedWingDays = getDaysUntilExpiry(pilot.smallFixedWingLicenseExpiry)
+    }
+    
     let instructorStatus = null
     let instructorDays = null
     
@@ -677,7 +784,7 @@ export default function Dashboard() {
       instructorDays = getDaysUntilExpiry(pilot.instructorLicenseExpiry)
     }
     
-    return { healthStatus, healthDays, instructorStatus, instructorDays }
+    return { healthStatus, healthDays, smallFixedWingStatus, smallFixedWingDays, instructorStatus, instructorDays }
   }
 
   const getStatusBadge = (status: string, days: number) => {
@@ -708,6 +815,18 @@ export default function Dashboard() {
       })
     }
     
+    if (pilot.smallFixedWingLicenseExpiry && pilot.hasSmallFixedWingLicense) {
+      const smallFixedWingDays = getDaysUntilExpiry(pilot.smallFixedWingLicenseExpiry)
+      if (smallFixedWingDays <= 45 && smallFixedWingDays >= 0) {
+        expirations.push({
+          pilotName: `${pilot.firstName} ${pilot.lastName}`,
+          type: 'רישיון כנף קבועה 0-25 ק"ג',
+          days: smallFixedWingDays,
+          date: pilot.smallFixedWingLicenseExpiry
+        })
+      }
+    }
+    
     if (pilot.instructorLicenseExpiry) {
       const instructorDays = getDaysUntilExpiry(pilot.instructorLicenseExpiry)
       if (instructorDays <= 45 && instructorDays >= 0) {
@@ -734,6 +853,18 @@ export default function Dashboard() {
         days: Math.abs(healthDays),
         date: pilot.healthCertificateExpiry
       })
+    }
+    
+    if (pilot.smallFixedWingLicenseExpiry && pilot.hasSmallFixedWingLicense) {
+      const smallFixedWingDays = getDaysUntilExpiry(pilot.smallFixedWingLicenseExpiry)
+      if (smallFixedWingDays < 0) {
+        expired.push({
+          pilotName: `${pilot.firstName} ${pilot.lastName}`,
+          type: 'רישיון כנף קבועה 0-25 ק"ג',
+          days: Math.abs(smallFixedWingDays),
+          date: pilot.smallFixedWingLicenseExpiry
+        })
+      }
     }
     
     if (pilot.instructorLicenseExpiry) {
@@ -930,7 +1061,7 @@ export default function Dashboard() {
                       <div className="space-y-4 p-4">
                   {getFilteredAndSortedPilots()
                     .map((pilot, index) => {
-                      const { healthStatus, healthDays, instructorStatus, instructorDays } = getExpiryDetails(pilot)
+                      const { healthStatus, healthDays, instructorStatus, instructorDays, smallFixedWingStatus, smallFixedWingDays } = getExpiryDetails(pilot)
                       
                       return (
                         <motion.div
@@ -962,13 +1093,15 @@ export default function Dashboard() {
                                 <Edit className="h-3 w-3" />
                                 <span className="text-xs">עריכה</span>
                               </button>
-                              <button
-                                onClick={() => handleDeletePilot(pilot)}
-                                className="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                <span className="text-xs">מחק</span>
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => handleDeletePilot(pilot)}
+                                  className="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  <span className="text-xs">מחק</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                           
@@ -1002,6 +1135,11 @@ export default function Dashboard() {
                                 קב"ט
                               </span>
                             )}
+                            {pilot.hasSmallFixedWingLicense && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-300">
+                                כנף קבועה 0-25 ק"ג
+                              </span>
+                            )}
                           </div>
                           
                           <div className="grid grid-cols-1 gap-2 text-sm">
@@ -1010,6 +1148,20 @@ export default function Dashboard() {
                               <span className="text-gray-300">{formatDate(pilot.healthCertificateExpiry)}</span>
                               <div className="mt-1">{getStatusBadge(healthStatus, healthDays)}</div>
                             </div>
+                            
+                            {pilot.hasSmallFixedWingLicense && (
+                              <div>
+                                <span className="text-gray-400">רישיון 0-25 ק"ג: </span>
+                                {pilot.smallFixedWingLicenseExpiry ? (
+                                  <div>
+                                    <span className="text-gray-300">{formatDate(pilot.smallFixedWingLicenseExpiry)}</span>
+                                    <div className="mt-1">{getStatusBadge(smallFixedWingStatus!, smallFixedWingDays!)}</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-yellow-400">חסר תאריך</span>
+                                )}
+                              </div>
+                            )}
                             
                             <div>
                               <span className="text-gray-400">רישיון מדריך: </span>
@@ -1053,6 +1205,9 @@ export default function Dashboard() {
                         תוקף תעודה רפואית
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        תוקף רישיון 0-25 ק"ג
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                         תוקף רישיון מדריך
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
@@ -1066,7 +1221,7 @@ export default function Dashboard() {
                   <tbody className="divide-y divide-gray-700">
                     {getFilteredAndSortedPilots()
                       .map((pilot, index) => {
-                        const { healthStatus, healthDays, instructorStatus, instructorDays } = getExpiryDetails(pilot)
+                        const { healthStatus, healthDays, smallFixedWingStatus, smallFixedWingDays, instructorStatus, instructorDays } = getExpiryDetails(pilot)
                         
                         return (
                           <motion.tr
@@ -1129,6 +1284,18 @@ export default function Dashboard() {
                               {getStatusBadge(healthStatus, healthDays)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
+                              {pilot.hasSmallFixedWingLicense && pilot.smallFixedWingLicenseExpiry ? (
+                                <div>
+                                  <div className="text-sm text-gray-300">{formatDate(pilot.smallFixedWingLicenseExpiry)}</div>
+                                  {getStatusBadge(smallFixedWingStatus!, smallFixedWingDays!)}
+                                </div>
+                              ) : pilot.hasSmallFixedWingLicense ? (
+                                <span className="text-yellow-400">חסר תאריך</span>
+                              ) : (
+                                <span className="text-gray-500">ללא רישיון</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
                               {pilot.isInstructor && pilot.instructorLicenseExpiry ? (
                                 <div>
                                   <div className="text-sm text-gray-300">{formatDate(pilot.instructorLicenseExpiry)}</div>
@@ -1154,13 +1321,15 @@ export default function Dashboard() {
                                   <Edit className="h-4 w-4" />
                                   <span className="text-xs">עריכה</span>
                                 </button>
-                                <button
-                                  onClick={() => handleDeletePilot(pilot)}
-                                  className="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-red-500/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="text-xs">מחק</span>
-                                </button>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => handleDeletePilot(pilot)}
+                                    className="text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-red-500/10"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="text-xs">מחק</span>
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </motion.tr>
@@ -1185,17 +1354,17 @@ export default function Dashboard() {
               >
                 <div className="px-4 py-3 border-b border-gray-700">
                   <h2 className="text-base font-semibold text-white">פגים בקרוב</h2>
-                  <p className="text-xs text-gray-400">תוקף של 45 ימים ומטה</p>
+                  <p className="text-xs text-gray-400">תוקף של 45 ימים ומטה ({upcomingExpirations.length} פריטים)</p>
                 </div>
                 <div className="p-4">
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
                     {upcomingExpirations.length === 0 ? (
                       <div className="text-center py-3">
                         <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
                         <p className="text-xs text-gray-400">אין פגים בקרוב</p>
                       </div>
                     ) : (
-                      upcomingExpirations.slice(0, 4).map((expiration, index) => (
+                      upcomingExpirations.map((expiration, index) => (
                         <div key={index} className="flex items-center gap-3 p-2 bg-gray-700/30 rounded-lg">
                           <div className="p-1.5 bg-orange-500/20 rounded-lg">
                             <Clock className="h-3 w-3 text-orange-400" />
@@ -1221,17 +1390,17 @@ export default function Dashboard() {
               >
                 <div className="px-4 py-3 border-b border-gray-700">
                   <h2 className="text-base font-semibold text-white">רשיונות שפגו</h2>
-                  <p className="text-xs text-gray-400">רשיונות ותעודות שפג תוקפן</p>
+                  <p className="text-xs text-gray-400">רשיונות ותעודות שפג תוקפן ({expiredLicenses.length} פריטים)</p>
                 </div>
                 <div className="p-4">
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
                     {expiredLicenses.length === 0 ? (
                       <div className="text-center py-3">
                         <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
                         <p className="text-xs text-gray-400">אין רשיונות שפגו</p>
                       </div>
                     ) : (
-                      expiredLicenses.slice(0, 4).map((expired, index) => (
+                      expiredLicenses.map((expired, index) => (
                         <div key={index} className="flex items-center gap-3 p-2 bg-gray-700/30 rounded-lg">
                           <div className="p-1.5 bg-red-500/20 rounded-lg">
                             <X className="h-3 w-3 text-red-400" />
@@ -1258,6 +1427,7 @@ export default function Dashboard() {
           <PilotForm
             onSubmit={handleAddPilot}
             onClose={() => setShowForm(false)}
+            isAdmin={isAdmin}
           />
         )}
       </AnimatePresence>
@@ -1269,6 +1439,7 @@ export default function Dashboard() {
             onSubmit={handleEditPilot}
             onClose={() => setEditingPilot(null)}
             initialData={editingPilot}
+            isAdmin={isAdmin}
           />
         )}
       </AnimatePresence>
@@ -1399,6 +1570,11 @@ export default function Dashboard() {
                     ) : (
                       <span className="text-gray-500">לא הוגדרו קטגוריות</span>
                     )}
+                    {selectedPilot.hasSmallFixedWingLicense && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-300">
+                        כנף קבועה 0-25 ק"ג
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1413,6 +1589,26 @@ export default function Dashboard() {
                     })()}
                   </div>
                 </div>
+
+                {selectedPilot.hasSmallFixedWingLicense && (
+                  <div className="bg-gray-800/40 rounded-xl p-4">
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">רישיון כנף קבועה 0-25 ק"ג</h4>
+                    {selectedPilot.smallFixedWingLicenseExpiry ? (
+                      <div>
+                        <p className="text-white">{formatDate(selectedPilot.smallFixedWingLicenseExpiry)}</p>
+                        <div className="mt-2">
+                          {(() => {
+                            const smallFixedWingDays = getDaysUntilExpiry(selectedPilot.smallFixedWingLicenseExpiry!)
+                            const smallFixedWingStatus = getExpiryStatus(selectedPilot.smallFixedWingLicenseExpiry!)
+                            return getStatusBadge(smallFixedWingStatus, smallFixedWingDays)
+                          })()}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-yellow-400">חסר תאריך</p>
+                    )}
+                  </div>
+                )}
 
                 {selectedPilot.isInstructor && (
                   <div className="bg-gray-800/40 rounded-xl p-4">

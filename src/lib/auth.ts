@@ -11,6 +11,9 @@ export interface AdminSession {
 // Check if user is currently logged in as admin
 export const isAdminLoggedIn = (): boolean => {
   try {
+    // Check if we're in browser environment
+    if (typeof window === 'undefined') return false
+    
     const sessionData = localStorage.getItem(ADMIN_SESSION_KEY)
     if (!sessionData) return false
 
