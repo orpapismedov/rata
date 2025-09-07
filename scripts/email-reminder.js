@@ -328,22 +328,33 @@ async function checkAndSendReminders() {
       }
       
       // Check small fixed wing license - exactly 45 days before expiry
+      console.log(`🔍 CHECKING SMALL FIXED WING for ${pilot.firstName} ${pilot.lastName}`);
+      console.log(`   hasSmallFixedWingLicense: ${pilot.hasSmallFixedWingLicense}`);
+      console.log(`   smallFixedWingLicenseExpiry: ${pilot.smallFixedWingLicenseExpiry}`);
+      
       if (pilot.hasSmallFixedWingLicense && pilot.smallFixedWingLicenseExpiry) {
+        console.log(`✅ ENTERING small fixed wing check for ${pilot.firstName} ${pilot.lastName}`);
+        
         // Handle both Firebase timestamp and JavaScript Date objects
         let smallFixedWingExpiry;
         if (pilot.smallFixedWingLicenseExpiry.seconds) {
           // Firebase timestamp
           smallFixedWingExpiry = new Date(pilot.smallFixedWingLicenseExpiry.seconds * 1000);
+          console.log(`📅 Converted Firebase timestamp to: ${smallFixedWingExpiry}`);
         } else {
           // JavaScript Date object or string
           smallFixedWingExpiry = new Date(pilot.smallFixedWingLicenseExpiry);
+          console.log(`📅 Converted JS date/string to: ${smallFixedWingExpiry}`);
         }
         
         const smallFixedWingDaysLeft = getDaysUntilExpiry(smallFixedWingExpiry);
+        console.log(`📊 Days calculation: ${smallFixedWingDaysLeft} days left`);
+        console.log(`🎯 Checking if ${smallFixedWingDaysLeft} === 45`);
         
         console.log(`✈️ Small fixed wing license expires: ${smallFixedWingExpiry.toLocaleDateString('he-IL')} (${smallFixedWingDaysLeft} days left)`);
         
         if (smallFixedWingDaysLeft === 45) {
+          console.log(`🚨 FOUND 45-DAY MATCH! Processing reminder...`);
           const alreadySent = await wasReminderSent(db, pilot.id, 'smallFixedWing', smallFixedWingExpiry.toISOString().split('T')[0]);
           
           if (!alreadySent) {
@@ -370,9 +381,11 @@ async function checkAndSendReminders() {
           } else {
             console.log(`⏭️ Small fixed wing reminder already sent to ${pilot.firstName} ${pilot.lastName}`);
           }
+        } else {
+          console.log(`⏰ Small fixed wing license not expiring in 45 days (${smallFixedWingDaysLeft} days left)`);
         }
       } else {
-        console.log(`ℹ️ No small fixed wing license or expiry date for ${pilot.firstName} ${pilot.lastName}`);
+        console.log(`❌ SKIPPING small fixed wing check: hasLicense=${pilot.hasSmallFixedWingLicense}, hasExpiry=${!!pilot.smallFixedWingLicenseExpiry}`);
       }
     }
     
