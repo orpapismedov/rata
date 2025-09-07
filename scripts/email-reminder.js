@@ -61,7 +61,9 @@ async function sendEmailViaEmailJS(emailData) {
       template_params: {
         pilot_name: emailData.pilotName,
         pilot_email: emailData.pilotEmail,
-        license_type: emailData.licenseType === 'medical' ? 'תעודה רפואית' : 'רישיון מדריך',
+        license_type: emailData.licenseType === 'medical' ? 'תעודה רפואית' : 
+                      emailData.licenseType === 'instructor' ? 'רישיון מדריך' : 
+                      'רישיון כנף קבועה 0-25 קג',
         expiry_date: emailData.expiryDate,
         days_until_expiry: emailData.daysUntilExpiry,
         to_email: emailData.pilotEmail
@@ -311,6 +313,43 @@ async function checkAndSendReminders() {
             
           } else {
             console.log(`⏭️ Instructor reminder already sent to ${pilot.firstName} ${pilot.lastName}`);
+          }
+        }
+      }
+      
+      // Check small fixed wing license - exactly 45 days before expiry
+      if (pilot.hasSmallFixedWingLicense && pilot.smallFixedWingLicenseExpiry) {
+        const smallFixedWingExpiry = new Date(pilot.smallFixedWingLicenseExpiry.seconds * 1000);
+        const smallFixedWingDaysLeft = getDaysUntilExpiry(smallFixedWingExpiry);
+        
+        console.log(`✈️ Small fixed wing license expires: ${smallFixedWingExpiry.toLocaleDateString('he-IL')} (${smallFixedWingDaysLeft} days left)`);
+        
+        if (smallFixedWingDaysLeft === 45) {
+          const alreadySent = await wasReminderSent(db, pilot.id, 'smallFixedWing', smallFixedWingExpiry.toISOString().split('T')[0]);
+          
+          if (!alreadySent) {
+            console.log(`📧 Sending small fixed wing reminder to ${pilot.email}`);
+            
+            const emailData = {
+              pilotName: `${pilot.firstName} ${pilot.lastName}`,
+              pilotEmail: pilot.email,
+              licenseType: 'smallFixedWing',
+              expiryDate: smallFixedWingExpiry.toLocaleDateString('he-IL'),
+              daysUntilExpiry: smallFixedWingDaysLeft
+            };
+            
+            const success = await sendEmailToPilotAndManagers(db, emailData, managers);
+            
+            if (success) {
+              await markReminderSent(db, pilot.id, 'smallFixedWing', smallFixedWingExpiry.toISOString().split('T')[0], `${pilot.firstName} ${pilot.lastName}`);
+              console.log(`✅ Small fixed wing license reminder sent to ${pilot.firstName} ${pilot.lastName} and managers`);
+              emailsSent++;
+            } else {
+              console.log(`❌ Failed to send small fixed wing reminder to ${pilot.firstName} ${pilot.lastName}`);
+            }
+            
+          } else {
+            console.log(`⏭️ Small fixed wing reminder already sent to ${pilot.firstName} ${pilot.lastName}`);
           }
         }
       }
