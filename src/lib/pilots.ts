@@ -27,6 +27,10 @@ export interface Pilot {
   instructorLicenseExpiry?: Date
   restrictions: 'ללא' | 'שיגור והנצלה בלבד' | 'אחר'
   customRestrictions?: string
+  pilotLicenseNumber?: string // License number for pilot
+  pilotLicenseImageUrl?: string // Firebase Storage URL for pilot license image
+  instructorLicenseNumber?: string // License number for instructor
+  instructorLicenseImageUrl?: string // Firebase Storage URL for instructor license image
   createdAt: Date
   updatedAt?: Date
 }

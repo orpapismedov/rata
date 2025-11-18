@@ -18,7 +18,8 @@ import {
   BarChart3,
   Mail,
   ChevronDown,
-  Search
+  Search,
+  Image as ImageIcon
 } from 'lucide-react'
 import { cn, formatDate, getDaysUntilExpiry, getExpiryStatus } from '@/lib/utils'
 import { 
@@ -33,6 +34,7 @@ import EmailNotificationPanel from '@/components/EmailNotificationPanel'
 import AdminLogin from '@/components/AdminLogin'
 import AdminProtected from '@/components/AdminProtected'
 import CustomDatePicker from '@/components/CustomDatePicker'
+import LicenseImageModal from '@/components/LicenseImageModal'
 import { isAdminLoggedIn } from '@/lib/auth'
 
 interface DashboardCard {
@@ -116,7 +118,7 @@ function PilotForm({
   initialData,
   isAdmin = false
 }: { 
-  onSubmit: (pilot: Omit<Pilot, 'id' | 'createdAt'>) => void, 
+  onSubmit: (pilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => Promise<void>, 
   onClose: () => void,
   initialData?: Pilot,
   isAdmin?: boolean
@@ -149,6 +151,15 @@ function PilotForm({
   )
   const [restrictions, setRestrictions] = useState<'ללא' | 'שיגור והנצלה בלבד' | 'אחר'>(initialData?.restrictions || 'ללא')
   const [customRestrictions, setCustomRestrictions] = useState(initialData?.customRestrictions || '')
+  
+  // License numbers and images
+  const [pilotLicenseNumber, setPilotLicenseNumber] = useState(initialData?.pilotLicenseNumber || '')
+  const [pilotLicenseImage, setPilotLicenseImage] = useState<File | null>(null)
+  const [pilotLicenseImageUrl, setPilotLicenseImageUrl] = useState(initialData?.pilotLicenseImageUrl || '')
+  const [instructorLicenseNumber, setInstructorLicenseNumber] = useState(initialData?.instructorLicenseNumber || '')
+  const [instructorLicenseImage, setInstructorLicenseImage] = useState<File | null>(null)
+  const [instructorLicenseImageUrl, setInstructorLicenseImageUrl] = useState(initialData?.instructorLicenseImageUrl || '')
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const isEditing = !!initialData
 
@@ -176,6 +187,13 @@ function PilotForm({
     const bothWithInProgress = hasBoth && (hasIPInProgress || hasEPInProgress)
     
     return sameTypeConflicts || bothWithInProgress
+  }
+
+  // Check if pilot license number is required
+  const isPilotLicenseNumberRequired = () => {
+    return rataCertifications.includes('מטיס פנים') || 
+           rataCertifications.includes('מטיס חוץ') || 
+           rataCertifications.includes('מטיס פנים וחוץ')
   }
 
   // Calculate rataCertification from rataCertifications for backward compatibility
@@ -210,7 +228,7 @@ function PilotForm({
     return new Date().toISOString().split('T')[0]
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validate no conflicting certifications
@@ -225,23 +243,56 @@ function PilotForm({
       return
     }
 
-    onSubmit({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      rataCertification: calculateRataCertification(rataCertifications),
-      rataCertifications: rataCertifications,
-      isSafetyOfficer: isSafetyOfficer,
-      categories,
-      hasSmallFixedWingLicense,
-      smallFixedWingLicenseExpiry: hasSmallFixedWingLicense && smallFixedWingLicenseExpiry ? new Date(smallFixedWingLicenseExpiry) : undefined,
-      healthCertificateExpiry: new Date(healthCertificateExpiry),
-      isInstructor,
-      instructorLicenseExpiry: isInstructor && instructorLicenseExpiry ? new Date(instructorLicenseExpiry) : undefined,
-      restrictions,
-      customRestrictions: restrictions === 'אחר' ? customRestrictions : undefined
-    })
-    onClose()
+    // Validate pilot license number if required
+    if (isPilotLicenseNumberRequired() && !pilotLicenseNumber.trim()) {
+      alert('יש להזין מספר רשיון מטיס')
+      return
+    }
+
+    // Validate instructor license number if instructor
+    if (isInstructor && !instructorLicenseNumber.trim()) {
+      alert('יש להזין מספר רשיון מדריך')
+      return
+    }
+
+    try {
+      setIsUploadingImage(true)
+      console.log('Form submitting...')
+      
+      // Pass the data along with image files to parent
+      await onSubmit(
+        {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          rataCertification: calculateRataCertification(rataCertifications),
+          rataCertifications: rataCertifications,
+          isSafetyOfficer: isSafetyOfficer,
+          categories,
+          hasSmallFixedWingLicense,
+          smallFixedWingLicenseExpiry: hasSmallFixedWingLicense && smallFixedWingLicenseExpiry ? new Date(smallFixedWingLicenseExpiry) : undefined,
+          healthCertificateExpiry: new Date(healthCertificateExpiry),
+          isInstructor,
+          instructorLicenseExpiry: isInstructor && instructorLicenseExpiry ? new Date(instructorLicenseExpiry) : undefined,
+          restrictions,
+          customRestrictions: restrictions === 'אחר' ? customRestrictions : undefined,
+          pilotLicenseNumber: isPilotLicenseNumberRequired() ? pilotLicenseNumber.trim() : undefined,
+          pilotLicenseImageUrl: pilotLicenseImageUrl || undefined,
+          instructorLicenseNumber: isInstructor ? instructorLicenseNumber.trim() : undefined,
+          instructorLicenseImageUrl: instructorLicenseImageUrl || undefined
+        },
+        pilotLicenseImage || undefined,
+        instructorLicenseImage || undefined
+      )
+      
+      console.log('Form submission completed')
+      onClose()
+    } catch (error) {
+      console.error('Error in form submission:', error)
+      alert('שגיאה בשמירת הנתונים')
+    } finally {
+      setIsUploadingImage(false)
+    }
   }
 
   return (
@@ -357,6 +408,57 @@ function PilotForm({
               </p>
             )}
           </div>
+
+          {/* Pilot License Number - Required if has active license */}
+          {isPilotLicenseNumberRequired() && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                מספר רשיון מטיס <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={pilotLicenseNumber}
+                onChange={(e) => setPilotLicenseNumber(e.target.value)}
+                required={isPilotLicenseNumberRequired()}
+                placeholder="הזן מספר רשיון"
+                disabled={isEditing && !isAdmin}
+                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+              {isEditing && !isAdmin && (
+                <p className="text-xs text-yellow-400">רק מנהל יכול לערוך מספר רשיון</p>
+              )}
+            </div>
+          )}
+
+          {/* Pilot License Image Upload - Optional */}
+          {isPilotLicenseNumberRequired() && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                העלה תמונת רשיון מטיס (לא חובה)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    setPilotLicenseImage(file)
+                  }
+                }}
+                disabled={(isEditing && !isAdmin) || isUploadingImage}
+                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${(isEditing && !isAdmin) || isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+              {pilotLicenseImageUrl && (
+                <p className="text-xs text-green-400">✓ תמונה קיימת נשמרה</p>
+              )}
+              {pilotLicenseImage && (
+                <p className="text-xs text-blue-400">✓ תמונה חדשה נבחרה: {pilotLicenseImage.name}</p>
+              )}
+              {isEditing && !isAdmin && (
+                <p className="text-xs text-yellow-400">רק מנהל יכול לערוך תמונת רשיון</p>
+              )}
+            </div>
+          )}
           
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-300">
@@ -524,22 +626,71 @@ function PilotForm({
           </div>
 
           {isInstructor && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">
-                תוקף רישיון מדריך
-              </label>
-              <CustomDatePicker
-                value={instructorLicenseExpiry}
-                onChange={setInstructorLicenseExpiry}
-                maxYearsFromNow={2}
-                required={isInstructor}
-                placeholder="DD/MM/YYYY"
-                className="w-full"
-              />
-              <p className="text-xs text-gray-400">
-                ניתן להזין תאריך עד 2 שנים מהיום (פורמט: DD/MM/YYYY)
-              </p>
-            </div>
+            <>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  תוקף רישיון מדריך
+                </label>
+                <CustomDatePicker
+                  value={instructorLicenseExpiry}
+                  onChange={setInstructorLicenseExpiry}
+                  maxYearsFromNow={2}
+                  required={isInstructor}
+                  placeholder="DD/MM/YYYY"
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-400">
+                  ניתן להזין תאריך עד 2 שנים מהיום (פורמט: DD/MM/YYYY)
+                </p>
+              </div>
+
+              {/* Instructor License Number - Required */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  מספר רשיון מדריך <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={instructorLicenseNumber}
+                  onChange={(e) => setInstructorLicenseNumber(e.target.value)}
+                  required={isInstructor}
+                  placeholder="הזן מספר רשיון מדריך"
+                  disabled={isEditing && !isAdmin}
+                  className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                />
+                {isEditing && !isAdmin && (
+                  <p className="text-xs text-yellow-400">רק מנהל יכול לערוך מספר רשיון מדריך</p>
+                )}
+              </div>
+
+              {/* Instructor License Image Upload - Optional */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  העלה תמונת רשיון מדריך (לא חובה)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setInstructorLicenseImage(file)
+                    }
+                  }}
+                  disabled={(isEditing && !isAdmin) || isUploadingImage}
+                  className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-500 file:text-white hover:file:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${(isEditing && !isAdmin) || isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                />
+                {instructorLicenseImageUrl && (
+                  <p className="text-xs text-green-400">✓ תמונה קיימת נשמרה</p>
+                )}
+                {instructorLicenseImage && (
+                  <p className="text-xs text-blue-400">✓ תמונה חדשה נבחרה: {instructorLicenseImage.name}</p>
+                )}
+                {isEditing && !isAdmin && (
+                  <p className="text-xs text-yellow-400">רק מנהל יכול לערוך תמונת רשיון מדריך</p>
+                )}
+              </div>
+            </>
           )}
           
           <div className="space-y-2">
@@ -583,9 +734,10 @@ function PilotForm({
           <div className="flex gap-4 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+              disabled={isUploadingImage}
+              className={`flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {isEditing ? 'עדכן מטיס' : 'הוסף מטיס'}
+              {isUploadingImage ? 'מעלה תמונות...' : isEditing ? 'עדכן מטיס' : 'הוסף מטיס'}
             </button>
             
             <button
@@ -614,6 +766,8 @@ export default function Dashboard() {
   const [showPilotsTable, setShowPilotsTable] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [imageModalPilot, setImageModalPilot] = useState<Pilot | null>(null)
   
   // Check admin status on component mount
   useEffect(() => {
@@ -714,28 +868,106 @@ export default function Dashboard() {
     }
   ]
 
-  const handleAddPilot = async (newPilot: Omit<Pilot, 'id' | 'createdAt'>) => {
+  const handleAddPilot = async (newPilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => {
+    console.log('handleAddPilot called', { newPilot, pilotLicenseImage, instructorLicenseImage })
     try {
+      // First, create the pilot to get the ID
+      console.log('Creating pilot...')
       const pilot = await addPilot(newPilot)
-      setPilots([...pilots, pilot])
+      console.log('Pilot created:', pilot)
+      
+      // If there are images, upload them and update the pilot
+      if (pilot.id && (pilotLicenseImage || instructorLicenseImage)) {
+        console.log('Uploading images...')
+        const { uploadLicenseImage } = await import('@/lib/firebase')
+        let updatedData: Partial<Pilot> = {}
+        
+        if (pilotLicenseImage) {
+          try {
+            const pilotImageUrl = await uploadLicenseImage(pilotLicenseImage, pilot.id, 'pilot')
+            updatedData.pilotLicenseImageUrl = pilotImageUrl
+            console.log('✅ Pilot license image uploaded successfully')
+          } catch (error) {
+            console.error('⚠️ Could not upload pilot license image (CORS/Storage issue):', error)
+            alert('⚠️ לא ניתן להעלות תמונת רישיון מטיס כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
+          }
+        }
+        
+        if (instructorLicenseImage) {
+          try {
+            const instructorImageUrl = await uploadLicenseImage(instructorLicenseImage, pilot.id, 'instructor')
+            updatedData.instructorLicenseImageUrl = instructorImageUrl
+            console.log('✅ Instructor license image uploaded successfully')
+          } catch (error) {
+            console.error('⚠️ Could not upload instructor license image (CORS/Storage issue):', error)
+            alert('⚠️ לא ניתן להעלות תמונת רישיון מדריך כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
+          }
+        }
+        
+        // Update pilot with image URLs
+        if (Object.keys(updatedData).length > 0) {
+          console.log('Updating pilot with image URLs:', updatedData)
+          await updatePilot(pilot.id, updatedData as Omit<Pilot, 'id' | 'createdAt'>)
+          setPilots([...pilots, { ...pilot, ...updatedData }])
+          console.log('Pilot updated with images')
+        } else {
+          setPilots([...pilots, pilot])
+          console.log('No images, pilot added')
+        }
+      } else {
+        setPilots([...pilots, pilot])
+        console.log('Pilot added without images')
+      }
+      console.log('handleAddPilot completed successfully')
     } catch (error) {
       console.error('Error adding pilot:', error)
+      alert('שגיאה בהוספת מטיס')
     }
   }
 
-  const handleEditPilot = async (editedPilot: Omit<Pilot, 'id' | 'createdAt'>) => {
+  const handleEditPilot = async (editedPilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => {
     if (editingPilot && editingPilot.id) {
       try {
-        await updatePilot(editingPilot.id, editedPilot)
+        let updatedData = { ...editedPilot }
+        
+        // Upload new images if provided
+        if (pilotLicenseImage || instructorLicenseImage) {
+          const { uploadLicenseImage } = await import('@/lib/firebase')
+          
+          if (pilotLicenseImage) {
+            try {
+              const pilotImageUrl = await uploadLicenseImage(pilotLicenseImage, editingPilot.id, 'pilot')
+              updatedData.pilotLicenseImageUrl = pilotImageUrl
+              console.log('✅ Pilot license image uploaded successfully')
+            } catch (error) {
+              console.error('⚠️ Could not upload pilot license image (CORS/Storage issue):', error)
+              alert('⚠️ לא ניתן להעלות תמונת רישיון מטיס כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
+            }
+          }
+          
+          if (instructorLicenseImage) {
+            try {
+              const instructorImageUrl = await uploadLicenseImage(instructorLicenseImage, editingPilot.id, 'instructor')
+              updatedData.instructorLicenseImageUrl = instructorImageUrl
+              console.log('✅ Instructor license image uploaded successfully')
+            } catch (error) {
+              console.error('⚠️ Could not upload instructor license image (CORS/Storage issue):', error)
+              alert('⚠️ לא ניתן להעלות תמונת רישיון מדריך כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
+            }
+          }
+        }
+        
+        await updatePilot(editingPilot.id, updatedData)
         const updatedPilots = pilots.map(pilot => 
           pilot.id === editingPilot.id 
-            ? { ...pilot, ...editedPilot }
+            ? { ...pilot, ...updatedData }
             : pilot
         )
         setPilots(updatedPilots)
         setEditingPilot(null)
       } catch (error) {
         console.error('Error updating pilot:', error)
+        alert('שגיאה בעדכון מטיס')
       }
     }
   }
@@ -1558,6 +1790,41 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* License Numbers and Images */}
+                {(selectedPilot.pilotLicenseNumber || selectedPilot.instructorLicenseNumber || selectedPilot.pilotLicenseImageUrl || selectedPilot.instructorLicenseImageUrl) && (
+                  <div className="bg-gray-800/40 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-400">מספרי רישיונות</h4>
+                      {(selectedPilot.pilotLicenseImageUrl || selectedPilot.instructorLicenseImageUrl) && (
+                        <button
+                          onClick={() => {
+                            setImageModalPilot(selectedPilot)
+                            setImageModalOpen(true)
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg transition-colors"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                          <span className="text-sm">צפה בתמונות</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {selectedPilot.pilotLicenseNumber && (
+                        <div>
+                          <p className="text-xs text-gray-500">מספר רשיון מטיס</p>
+                          <p className="text-white font-mono">{selectedPilot.pilotLicenseNumber}</p>
+                        </div>
+                      )}
+                      {selectedPilot.instructorLicenseNumber && (
+                        <div>
+                          <p className="text-xs text-gray-500">מספר רשיון מדריך</p>
+                          <p className="text-white font-mono">{selectedPilot.instructorLicenseNumber}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-gray-800/40 rounded-xl p-4">
                   <h4 className="text-sm font-medium text-gray-400 mb-2">קטגוריות כטמ"ם</h4>
                   <div className="flex flex-wrap gap-2">
@@ -1678,6 +1945,18 @@ export default function Dashboard() {
           />
         )}
       </AnimatePresence>
+
+      {/* License Image Modal */}
+      <LicenseImageModal
+        isOpen={imageModalOpen}
+        onClose={() => {
+          setImageModalOpen(false)
+          setImageModalPilot(null)
+        }}
+        pilotLicenseUrl={imageModalPilot?.pilotLicenseImageUrl}
+        instructorLicenseUrl={imageModalPilot?.instructorLicenseImageUrl}
+        pilotName={imageModalPilot ? `${imageModalPilot.firstName} ${imageModalPilot.lastName}` : ''}
+      />
 
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { loginAsAdmin, logoutAdmin, isAdminLoggedIn } from '@/lib/auth'
 
 interface AdminLoginProps {
@@ -8,10 +8,15 @@ interface AdminLoginProps {
 }
 
 export default function AdminLogin({ onAdminStatusChange }: AdminLoginProps) {
-  const [isAdmin, setIsAdmin] = useState(isAdminLoggedIn())
+  const [isAdmin, setIsAdmin] = useState(false)
   const [password, setPassword] = useState('')
   const [showPasswordInput, setShowPasswordInput] = useState(false)
   const [error, setError] = useState('')
+  
+  // Check admin status on mount (client-side only)
+  useEffect(() => {
+    setIsAdmin(isAdminLoggedIn())
+  }, [])
 
   const handleLogin = () => {
     if (loginAsAdmin(password)) {
