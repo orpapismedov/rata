@@ -23,11 +23,11 @@ export const storage = getStorage(app)
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null
 
 /**
- * Upload a license image to Firebase Storage
+ * Upload a license image - converts to base64 data URL
  * @param file - The image file to upload
- * @param pilotId - The pilot's ID
+ * @param pilotId - The pilot's ID (not used in base64 approach)
  * @param licenseType - Type of license ('pilot' or 'instructor')
- * @returns The download URL of the uploaded image
+ * @returns The base64 data URL of the image
  */
 export async function uploadLicenseImage(
   file: File,
@@ -35,47 +35,32 @@ export async function uploadLicenseImage(
   licenseType: 'pilot' | 'instructor'
 ): Promise<string> {
   try {
-    // Create a unique filename with timestamp
-    const timestamp = Date.now()
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const storagePath = `license-images/${pilotId}/${licenseType}-${timestamp}-${sanitizedFileName}`
-    
-    // Create storage reference
-    const storageRef = ref(storage, storagePath)
-    
-    // Upload file
-    const snapshot = await uploadBytes(storageRef, file)
-    
-    // Get download URL
-    const downloadURL = await getDownloadURL(snapshot.ref)
-    
-    return downloadURL
+    // Convert file to base64 data URL
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const result = reader.result as string
+        resolve(result)
+      }
+      reader.onerror = () => {
+        reject(new Error('Failed to read image file'))
+      }
+      reader.readAsDataURL(file)
+    })
   } catch (error) {
-    console.error('Error uploading license image:', error)
-    throw new Error('Failed to upload license image')
+    console.error('Error converting license image:', error)
+    throw new Error('Failed to process license image')
   }
 }
 
 /**
- * Delete a license image from Firebase Storage
- * @param imageUrl - The URL of the image to delete
+ * Delete a license image - no-op for base64 data URLs
+ * @param imageUrl - The URL of the image to delete (base64 data URL)
  */
 export async function deleteLicenseImage(imageUrl: string): Promise<void> {
-  try {
-    if (!imageUrl) return
-    
-    // Extract storage path from URL
-    const storagePath = imageUrl.split('/o/')[1]?.split('?')[0]
-    if (!storagePath) return
-    
-    const decodedPath = decodeURIComponent(storagePath)
-    const storageRef = ref(storage, decodedPath)
-    
-    await deleteObject(storageRef)
-  } catch (error) {
-    console.error('Error deleting license image:', error)
-    // Don't throw error - deletion failure shouldn't block other operations
-  }
+  // No deletion needed for base64 data URLs stored in Firestore
+  // The image data is deleted when the document is updated/deleted
+  return Promise.resolve()
 }
 
 export default app

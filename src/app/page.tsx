@@ -1415,6 +1415,35 @@ export default function Dashboard() {
                                 {pilot.restrictions === 'אחר' ? pilot.customRestrictions : pilot.restrictions}
                               </span>
                             </div>
+                            
+                            {pilot.pilotLicenseNumber && (
+                              <div>
+                                <span className="text-gray-400">מספר רישיון מטיס: </span>
+                                <span className="text-gray-300">{pilot.pilotLicenseNumber}</span>
+                              </div>
+                            )}
+                            
+                            {pilot.instructorLicenseNumber && (
+                              <div>
+                                <span className="text-gray-400">מספר רישיון מדריך: </span>
+                                <span className="text-gray-300">{pilot.instructorLicenseNumber}</span>
+                              </div>
+                            )}
+                            
+                            {(pilot.pilotLicenseImageUrl || pilot.instructorLicenseImageUrl) && (
+                              <div>
+                                <button
+                                  onClick={() => {
+                                    setImageModalPilot(pilot)
+                                    setImageModalOpen(true)
+                                  }}
+                                  className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 text-sm"
+                                >
+                                  <ImageIcon className="h-4 w-4" />
+                                  <span>צפה בתמונות רישיון</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       )
@@ -1441,6 +1470,15 @@ export default function Dashboard() {
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                         תוקף רישיון מדריך
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        מספר רישיון מטיס
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        מספר רישיון מדריך
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        תמונות רישיון
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                         הגבלות
@@ -1537,6 +1575,32 @@ export default function Dashboard() {
                                 <span className="text-yellow-400">חסר תאריך</span>
                               ) : (
                                 <span className="text-gray-500">לא מדריך</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-300">
+                                {pilot.pilotLicenseNumber || <span className="text-gray-500">-</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-300">
+                                {pilot.instructorLicenseNumber || <span className="text-gray-500">-</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {(pilot.pilotLicenseImageUrl || pilot.instructorLicenseImageUrl) ? (
+                                <button
+                                  onClick={() => {
+                                    setImageModalPilot(pilot)
+                                    setImageModalOpen(true)
+                                  }}
+                                  className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-purple-500/10"
+                                >
+                                  <ImageIcon className="h-4 w-4" />
+                                  <span className="text-xs">צפה</span>
+                                </button>
+                              ) : (
+                                <span className="text-gray-500 text-xs">אין תמונות</span>
                               )}
                             </td>
                             <td className="px-6 py-4">
