@@ -259,7 +259,23 @@ function PilotForm({
       setIsUploadingImage(true)
       console.log('Form submitting...')
       
-      // Pass the data along with image files to parent
+      // Convert images to base64 if new files are selected
+      let finalPilotImageUrl = pilotLicenseImageUrl
+      let finalInstructorImageUrl = instructorLicenseImageUrl
+      
+      if (pilotLicenseImage) {
+        const { uploadLicenseImage } = await import('@/lib/firebase')
+        finalPilotImageUrl = await uploadLicenseImage(pilotLicenseImage, 'temp', 'pilot')
+        console.log('Pilot license image converted to base64')
+      }
+      
+      if (instructorLicenseImage) {
+        const { uploadLicenseImage } = await import('@/lib/firebase')
+        finalInstructorImageUrl = await uploadLicenseImage(instructorLicenseImage, 'temp', 'instructor')
+        console.log('Instructor license image converted to base64')
+      }
+      
+      // Pass the data with base64 image URLs to parent
       await onSubmit(
         {
           firstName: firstName.trim(),
@@ -277,12 +293,12 @@ function PilotForm({
           restrictions,
           customRestrictions: restrictions === 'אחר' ? customRestrictions : undefined,
           pilotLicenseNumber: isPilotLicenseNumberRequired() ? pilotLicenseNumber.trim() : undefined,
-          pilotLicenseImageUrl: pilotLicenseImageUrl || undefined,
+          pilotLicenseImageUrl: finalPilotImageUrl || undefined,
           instructorLicenseNumber: isInstructor ? instructorLicenseNumber.trim() : undefined,
-          instructorLicenseImageUrl: instructorLicenseImageUrl || undefined
+          instructorLicenseImageUrl: finalInstructorImageUrl || undefined
         },
-        pilotLicenseImage || undefined,
-        instructorLicenseImage || undefined
+        undefined, // No longer need to pass file objects
+        undefined  // No longer need to pass file objects
       )
       
       console.log('Form submission completed')
@@ -869,55 +885,14 @@ export default function Dashboard() {
   ]
 
   const handleAddPilot = async (newPilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => {
-    console.log('handleAddPilot called', { newPilot, pilotLicenseImage, instructorLicenseImage })
+    console.log('handleAddPilot called', { newPilot })
     try {
-      // First, create the pilot to get the ID
-      console.log('Creating pilot...')
+      // Images are already base64 strings in newPilot, just create the pilot
+      console.log('Creating pilot with all data including base64 images...')
       const pilot = await addPilot(newPilot)
-      console.log('Pilot created:', pilot)
+      console.log('Pilot created successfully:', pilot)
       
-      // If there are images, upload them and update the pilot
-      if (pilot.id && (pilotLicenseImage || instructorLicenseImage)) {
-        console.log('Uploading images...')
-        const { uploadLicenseImage } = await import('@/lib/firebase')
-        let updatedData: Partial<Pilot> = {}
-        
-        if (pilotLicenseImage) {
-          try {
-            const pilotImageUrl = await uploadLicenseImage(pilotLicenseImage, pilot.id, 'pilot')
-            updatedData.pilotLicenseImageUrl = pilotImageUrl
-            console.log('✅ Pilot license image uploaded successfully')
-          } catch (error) {
-            console.error('⚠️ Could not upload pilot license image (CORS/Storage issue):', error)
-            alert('⚠️ לא ניתן להעלות תמונת רישיון מטיס כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
-          }
-        }
-        
-        if (instructorLicenseImage) {
-          try {
-            const instructorImageUrl = await uploadLicenseImage(instructorLicenseImage, pilot.id, 'instructor')
-            updatedData.instructorLicenseImageUrl = instructorImageUrl
-            console.log('✅ Instructor license image uploaded successfully')
-          } catch (error) {
-            console.error('⚠️ Could not upload instructor license image (CORS/Storage issue):', error)
-            alert('⚠️ לא ניתן להעלות תמונת רישיון מדריך כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
-          }
-        }
-        
-        // Update pilot with image URLs
-        if (Object.keys(updatedData).length > 0) {
-          console.log('Updating pilot with image URLs:', updatedData)
-          await updatePilot(pilot.id, updatedData as Omit<Pilot, 'id' | 'createdAt'>)
-          setPilots([...pilots, { ...pilot, ...updatedData }])
-          console.log('Pilot updated with images')
-        } else {
-          setPilots([...pilots, pilot])
-          console.log('No images, pilot added')
-        }
-      } else {
-        setPilots([...pilots, pilot])
-        console.log('Pilot added without images')
-      }
+      setPilots([...pilots, pilot])
       console.log('handleAddPilot completed successfully')
     } catch (error) {
       console.error('Error adding pilot:', error)
@@ -928,39 +903,11 @@ export default function Dashboard() {
   const handleEditPilot = async (editedPilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => {
     if (editingPilot && editingPilot.id) {
       try {
-        let updatedData = { ...editedPilot }
-        
-        // Upload new images if provided
-        if (pilotLicenseImage || instructorLicenseImage) {
-          const { uploadLicenseImage } = await import('@/lib/firebase')
-          
-          if (pilotLicenseImage) {
-            try {
-              const pilotImageUrl = await uploadLicenseImage(pilotLicenseImage, editingPilot.id, 'pilot')
-              updatedData.pilotLicenseImageUrl = pilotImageUrl
-              console.log('✅ Pilot license image uploaded successfully')
-            } catch (error) {
-              console.error('⚠️ Could not upload pilot license image (CORS/Storage issue):', error)
-              alert('⚠️ לא ניתן להעלות תמונת רישיון מטיס כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
-            }
-          }
-          
-          if (instructorLicenseImage) {
-            try {
-              const instructorImageUrl = await uploadLicenseImage(instructorLicenseImage, editingPilot.id, 'instructor')
-              updatedData.instructorLicenseImageUrl = instructorImageUrl
-              console.log('✅ Instructor license image uploaded successfully')
-            } catch (error) {
-              console.error('⚠️ Could not upload instructor license image (CORS/Storage issue):', error)
-              alert('⚠️ לא ניתן להעלות תמונת רישיון מדריך כרגע (בעיית הרשאות). המטיס נשמר ללא תמונה.')
-            }
-          }
-        }
-        
-        await updatePilot(editingPilot.id, updatedData)
+        // Images are already base64 strings in editedPilot, just update the pilot
+        await updatePilot(editingPilot.id, editedPilot)
         const updatedPilots = pilots.map(pilot => 
           pilot.id === editingPilot.id 
-            ? { ...pilot, ...updatedData }
+            ? { ...pilot, ...editedPilot }
             : pilot
         )
         setPilots(updatedPilots)

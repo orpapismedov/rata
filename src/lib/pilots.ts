@@ -124,6 +124,10 @@ export const getAllPilots = async (): Promise<Pilot[]> => {
           instructorLicenseExpiry: data.instructorLicenseExpiry ? timestampToDate(data.instructorLicenseExpiry) : undefined,
           restrictions: data.restrictions,
           customRestrictions: data.customRestrictions,
+          pilotLicenseNumber: data.pilotLicenseNumber || '',
+          pilotLicenseImageUrl: data.pilotLicenseImageUrl || '',
+          instructorLicenseNumber: data.instructorLicenseNumber || '',
+          instructorLicenseImageUrl: data.instructorLicenseImageUrl || '',
           createdAt: timestampToDate(data.createdAt),
           updatedAt: data.updatedAt ? timestampToDate(data.updatedAt) : undefined
         } as Pilot
@@ -145,6 +149,10 @@ export const getAllPilots = async (): Promise<Pilot[]> => {
         instructorLicenseExpiry: data.instructorLicenseExpiry ? timestampToDate(data.instructorLicenseExpiry) : undefined,
         restrictions: data.restrictions,
         customRestrictions: data.customRestrictions,
+        pilotLicenseNumber: data.pilotLicenseNumber || '',
+        pilotLicenseImageUrl: data.pilotLicenseImageUrl || '',
+        instructorLicenseNumber: data.instructorLicenseNumber || '',
+        instructorLicenseImageUrl: data.instructorLicenseImageUrl || '',
         createdAt: timestampToDate(data.createdAt),
         updatedAt: data.updatedAt ? timestampToDate(data.updatedAt) : undefined
       } as Pilot
@@ -173,6 +181,10 @@ export const addPilot = async (pilot: Omit<Pilot, 'id' | 'createdAt' | 'updatedA
       instructorLicenseExpiry: pilot.instructorLicenseExpiry ? dateToTimestamp(pilot.instructorLicenseExpiry) : null,
       restrictions: pilot.restrictions,
       customRestrictions: pilot.customRestrictions || '',
+      pilotLicenseNumber: pilot.pilotLicenseNumber || '',
+      pilotLicenseImageUrl: pilot.pilotLicenseImageUrl || '',
+      instructorLicenseNumber: pilot.instructorLicenseNumber || '',
+      instructorLicenseImageUrl: pilot.instructorLicenseImageUrl || '',
       createdAt: dateToTimestamp(new Date())
     }
 
@@ -207,6 +219,10 @@ export const updatePilot = async (id: string, pilot: Omit<Pilot, 'id' | 'created
       instructorLicenseExpiry: pilot.instructorLicenseExpiry ? dateToTimestamp(pilot.instructorLicenseExpiry) : null,
       restrictions: pilot.restrictions,
       customRestrictions: pilot.customRestrictions || '',
+      pilotLicenseNumber: pilot.pilotLicenseNumber || '',
+      pilotLicenseImageUrl: pilot.pilotLicenseImageUrl || '',
+      instructorLicenseNumber: pilot.instructorLicenseNumber || '',
+      instructorLicenseImageUrl: pilot.instructorLicenseImageUrl || '',
       updatedAt: dateToTimestamp(new Date())
     }
 
