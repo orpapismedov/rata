@@ -437,12 +437,8 @@ function PilotForm({
                 onChange={(e) => setPilotLicenseNumber(e.target.value)}
                 required={isPilotLicenseNumberRequired()}
                 placeholder="הזן מספר רשיון"
-                disabled={isEditing && !isAdmin}
-                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
-              {isEditing && !isAdmin && (
-                <p className="text-xs text-yellow-400">רק מנהל יכול לערוך מספר רשיון</p>
-              )}
             </div>
           )}
 
@@ -461,17 +457,14 @@ function PilotForm({
                     setPilotLicenseImage(file)
                   }
                 }}
-                disabled={(isEditing && !isAdmin) || isUploadingImage}
-                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${(isEditing && !isAdmin) || isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isUploadingImage}
+                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
               {pilotLicenseImageUrl && (
                 <p className="text-xs text-green-400">✓ תמונה קיימת נשמרה</p>
               )}
               {pilotLicenseImage && (
                 <p className="text-xs text-blue-400">✓ תמונה חדשה נבחרה: {pilotLicenseImage.name}</p>
-              )}
-              {isEditing && !isAdmin && (
-                <p className="text-xs text-yellow-400">רק מנהל יכול לערוך תמונת רשיון</p>
               )}
             </div>
           )}
@@ -671,12 +664,8 @@ function PilotForm({
                   onChange={(e) => setInstructorLicenseNumber(e.target.value)}
                   required={isInstructor}
                   placeholder="הזן מספר רשיון מדריך"
-                  disabled={isEditing && !isAdmin}
-                  className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${isEditing && !isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
-                {isEditing && !isAdmin && (
-                  <p className="text-xs text-yellow-400">רק מנהל יכול לערוך מספר רשיון מדריך</p>
-                )}
               </div>
 
               {/* Instructor License Image Upload - Optional */}
@@ -693,17 +682,14 @@ function PilotForm({
                       setInstructorLicenseImage(file)
                     }
                   }}
-                  disabled={(isEditing && !isAdmin) || isUploadingImage}
-                  className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-500 file:text-white hover:file:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${(isEditing && !isAdmin) || isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isUploadingImage}
+                  className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-500 file:text-white hover:file:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 {instructorLicenseImageUrl && (
                   <p className="text-xs text-green-400">✓ תמונה קיימת נשמרה</p>
                 )}
                 {instructorLicenseImage && (
                   <p className="text-xs text-blue-400">✓ תמונה חדשה נבחרה: {instructorLicenseImage.name}</p>
-                )}
-                {isEditing && !isAdmin && (
-                  <p className="text-xs text-yellow-400">רק מנהל יכול לערוך תמונת רשיון מדריך</p>
                 )}
               </div>
             </>
