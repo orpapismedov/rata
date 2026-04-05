@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "out"
+
+[build.environment]
+  # Tells next.config.ts not to apply the /rata GitHub Pages basePath
+  GITHUB_PAGES = "false"
+
+# Gate every page through the edge function auth check
+[[edge_functions]]
+  path = "/*"
+  function = "auth-gate"

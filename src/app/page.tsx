@@ -19,7 +19,8 @@ import {
   Mail,
   ChevronDown,
   Search,
-  Image as ImageIcon
+  Image as ImageIcon,
+  LogOut
 } from 'lucide-react'
 import { cn, formatDate, getDaysUntilExpiry, getExpiryStatus } from '@/lib/utils'
 import { 
@@ -35,6 +36,7 @@ import AdminLogin from '@/components/AdminLogin'
 import AdminProtected from '@/components/AdminProtected'
 import CustomDatePicker from '@/components/CustomDatePicker'
 import LicenseImageModal from '@/components/LicenseImageModal'
+import PasswordProtection from '@/components/PasswordProtection'
 import { isAdminLoggedIn } from '@/lib/auth'
 
 interface DashboardCard {
@@ -240,6 +242,24 @@ function PilotForm({
     // Ensure at least one certification is selected
     if (rataCertifications.length === 0) {
       alert('יש לבחור לפחות הסמכה אחת')
+      return
+    }
+
+    // Validate health certificate expiry date is required
+    if (!healthCertificateExpiry || healthCertificateExpiry.trim() === '') {
+      alert('יש להזין תאריך תוקף תעודה רפואית')
+      return
+    }
+
+    // Validate small fixed wing license expiry if enabled
+    if (hasSmallFixedWingLicense && (!smallFixedWingLicenseExpiry || smallFixedWingLicenseExpiry.trim() === '')) {
+      alert('יש להזין תאריך תוקף רישיון 0-25 ק"ג')
+      return
+    }
+
+    // Validate instructor license expiry if instructor
+    if (isInstructor && (!instructorLicenseExpiry || instructorLicenseExpiry.trim() === '')) {
+      alert('יש להזין תאריך תוקף רישיון מדריך')
       return
     }
 
@@ -771,6 +791,12 @@ export default function Dashboard() {
   const [imageModalOpen, setImageModalOpen] = useState(false)
   const [imageModalPilot, setImageModalPilot] = useState<Pilot | null>(null)
   
+  // Logout handler
+  const handleLogout = () => {
+    sessionStorage.removeItem('uav_authenticated')
+    window.location.reload()
+  }
+  
   // Check admin status on component mount
   useEffect(() => {
     setIsAdmin(isAdminLoggedIn())
@@ -824,7 +850,7 @@ export default function Dashboard() {
       title: 'מטיסים פעילים',
       value: stats.totalPilots.toString(),
       icon: Users,
-      trend: '+3 החודש',
+      trend: '',
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10'
     },
@@ -832,7 +858,7 @@ export default function Dashboard() {
       title: 'רישיונות מטיס פנים תקפים',
       value: `${stats.validIpPilots} מתוך ${stats.ipPilots}`,
       icon: Award,
-      trend: '+2 החודש',
+      trend: '',
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/10'
     },
@@ -840,7 +866,7 @@ export default function Dashboard() {
       title: 'רישיונות מטיס חוץ תקפים',
       value: `${stats.validEpPilots} מתוך ${stats.epPilots}`,
       icon: Shield,
-      trend: '+1 החודש',
+      trend: '',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10'
     },
@@ -1048,7 +1074,8 @@ export default function Dashboard() {
   }).sort((a, b) => b.days - a.days)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden" style={{ direction: 'rtl' }}>
+    <PasswordProtection>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden" style={{ direction: 'rtl' }}>
       {/* Animated Background */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
@@ -1083,10 +1110,20 @@ export default function Dashboard() {
               <div className="flex-shrink-0 flex items-center">
                 <Plane className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
                 <span className="mr-2 text-lg sm:text-xl font-bold text-white hidden sm:block">מערכת ניהול רישיונות כטמ"ם</span>
-                <span className="mr-2 text-sm font-bold text-white sm:hidden">כטמ"ם אירונאוטיקס</span>
+                <span className="mr-2 text-sm font-bold text-white sm:hidden">כטמ"ם</span>
               </div>
             </div>
-            <AdminLogin onAdminStatusChange={setIsAdmin} />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLogout}
+                className="group bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2 text-sm"
+                title="יציאה"
+              >
+                <LogOut className="w-4 h-4 transition-transform group-hover:rotate-12" />
+                <span className="hidden sm:inline">יציאה</span>
+              </button>
+              <AdminLogin onAdminStatusChange={setIsAdmin} />
+            </div>
           </div>
         </div>
       </header>
@@ -1101,7 +1138,7 @@ export default function Dashboard() {
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">מערכת ניהול רשיונות כטמ"ם אירונאוטיקס</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">מערכת ניהול רשיונות כטמ"ם</h1>
               <p className="text-gray-400 text-sm sm:text-base">ניהול רישיונות מטיסי כטמ"ם ותעודות רפואיות</p>
             </div>
             <div className="flex gap-3">
@@ -1162,9 +1199,11 @@ export default function Dashboard() {
                       <p className="text-2xl font-semibold text-white">{card.value}</p>
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">{card.trend}</p>
-                  </div>
+                  {card.trend && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-500">{card.trend}</p>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>
@@ -1955,6 +1994,7 @@ export default function Dashboard() {
         pilotName={imageModalPilot ? `${imageModalPilot.firstName} ${imageModalPilot.lastName}` : ''}
       />
 
-    </div>
+      </div>
+    </PasswordProtection>
   )
 }
