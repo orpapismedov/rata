@@ -1,13 +1,21 @@
 // Netlify Function: authenticate
-// Validates the app password against the NETLIFY env var APP_PASSWORD.
-// On success sets a signed HttpOnly session cookie so the edge function can
-// verify it without any client-side exposure of the password.
+// Validates the app password against the APP_PASSWORD environment variable.
+// Called from GitHub Pages (cross-origin), so CORS headers are required.
 
-const crypto = require('crypto')
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || 'https://orpapismedov.github.io',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
 
 exports.handler = async (event) => {
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: CORS_HEADERS, body: '' }
+  }
+
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' }
+    return { statusCode: 405, headers: CORS_HEADERS, body: 'Method Not Allowed' }
   }
 
   let password
@@ -16,19 +24,18 @@ exports.handler = async (event) => {
   } catch {
     return {
       statusCode: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Invalid request body' }),
     }
   }
 
   const APP_PASSWORD = process.env.APP_PASSWORD
-  const SESSION_SECRET = process.env.SESSION_SECRET
 
-  if (!APP_PASSWORD || !SESSION_SECRET) {
-    console.error('Missing required environment variables: APP_PASSWORD, SESSION_SECRET')
+  if (!APP_PASSWORD) {
+    console.error('Missing required environment variable: APP_PASSWORD')
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Server configuration error' }),
     }
   }
@@ -36,22 +43,14 @@ exports.handler = async (event) => {
   if (typeof password !== 'string' || password !== APP_PASSWORD) {
     return {
       statusCode: 401,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'סיסמה שגויה. אנא נסה שוב.' }),
     }
   }
 
-  // Build a signed token: "<expiry_ms>.<hmac_hex>"
-  const expires = (Date.now() + 8 * 60 * 60 * 1000).toString() // 8 hours
-  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(expires).digest('hex')
-  const token = encodeURIComponent(`${expires}.${sig}`)
-
   return {
     statusCode: 200,
-    headers: {
-      'Set-Cookie': `uav_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`,
-      'Content-Type': 'application/json',
-    },
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     body: JSON.stringify({ success: true }),
   }
 }
