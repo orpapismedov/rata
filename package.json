@@ -5,6 +5,7 @@
   "homepage": "https://orpapismedov.github.io/rata",
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:netlify": "netlify dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -36,6 +37,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "gh-pages": "^6.3.0",
+    "netlify-cli": "^21.6.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -8,21 +8,18 @@ export interface AdminSession {
   timestamp: number
 }
 
-// Check if user is currently logged in as admin
+// Check if user is currently logged in as admin (client-side session marker only)
 export const isAdminLoggedIn = (): boolean => {
   try {
-    // Check if we're in browser environment
     if (typeof window === 'undefined') return false
-    
+
     const sessionData = localStorage.getItem(ADMIN_SESSION_KEY)
     if (!sessionData) return false
 
     const session: AdminSession = JSON.parse(sessionData)
     const now = Date.now()
-    
-    // Check if session is still valid (within 2 hours)
+
     if (now - session.timestamp > SESSION_DURATION) {
-      // Session expired, remove it
       localStorage.removeItem(ADMIN_SESSION_KEY)
       return false
     }
@@ -37,10 +34,7 @@ export const isAdminLoggedIn = (): boolean => {
 // Login as admin with password
 export const loginAsAdmin = (password: string): boolean => {
   if (password === ADMIN_PASSWORD) {
-    const session: AdminSession = {
-      isAdmin: true,
-      timestamp: Date.now()
-    }
+    const session: AdminSession = { isAdmin: true, timestamp: Date.now() }
     localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
     return true
   }
@@ -55,10 +49,7 @@ export const logoutAdmin = (): void => {
 // Refresh admin session (extend time)
 export const refreshAdminSession = (): void => {
   if (isAdminLoggedIn()) {
-    const session: AdminSession = {
-      isAdmin: true,
-      timestamp: Date.now()
-    }
+    const session: AdminSession = { isAdmin: true, timestamp: Date.now() }
     localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
   }
 }

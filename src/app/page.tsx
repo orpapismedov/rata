@@ -18,7 +18,9 @@ import {
   BarChart3,
   Mail,
   ChevronDown,
-  Search
+  Search,
+  Image as ImageIcon,
+  LogOut
 } from 'lucide-react'
 import { cn, formatDate, getDaysUntilExpiry, getExpiryStatus } from '@/lib/utils'
 import { 
@@ -33,6 +35,8 @@ import EmailNotificationPanel from '@/components/EmailNotificationPanel'
 import AdminLogin from '@/components/AdminLogin'
 import AdminProtected from '@/components/AdminProtected'
 import CustomDatePicker from '@/components/CustomDatePicker'
+import LicenseImageModal from '@/components/LicenseImageModal'
+import PasswordProtection from '@/components/PasswordProtection'
 import { isAdminLoggedIn } from '@/lib/auth'
 
 interface DashboardCard {
@@ -116,7 +120,7 @@ function PilotForm({
   initialData,
   isAdmin = false
 }: { 
-  onSubmit: (pilot: Omit<Pilot, 'id' | 'createdAt'>) => void, 
+  onSubmit: (pilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => Promise<void>, 
   onClose: () => void,
   initialData?: Pilot,
   isAdmin?: boolean
@@ -149,6 +153,15 @@ function PilotForm({
   )
   const [restrictions, setRestrictions] = useState<'ללא' | 'שיגור והנצלה בלבד' | 'אחר'>(initialData?.restrictions || 'ללא')
   const [customRestrictions, setCustomRestrictions] = useState(initialData?.customRestrictions || '')
+  
+  // License numbers and images
+  const [pilotLicenseNumber, setPilotLicenseNumber] = useState(initialData?.pilotLicenseNumber || '')
+  const [pilotLicenseImage, setPilotLicenseImage] = useState<File | null>(null)
+  const [pilotLicenseImageUrl, setPilotLicenseImageUrl] = useState(initialData?.pilotLicenseImageUrl || '')
+  const [instructorLicenseNumber, setInstructorLicenseNumber] = useState(initialData?.instructorLicenseNumber || '')
+  const [instructorLicenseImage, setInstructorLicenseImage] = useState<File | null>(null)
+  const [instructorLicenseImageUrl, setInstructorLicenseImageUrl] = useState(initialData?.instructorLicenseImageUrl || '')
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const isEditing = !!initialData
 
@@ -176,6 +189,13 @@ function PilotForm({
     const bothWithInProgress = hasBoth && (hasIPInProgress || hasEPInProgress)
     
     return sameTypeConflicts || bothWithInProgress
+  }
+
+  // Check if pilot license number is required
+  const isPilotLicenseNumberRequired = () => {
+    return rataCertifications.includes('מטיס פנים') || 
+           rataCertifications.includes('מטיס חוץ') || 
+           rataCertifications.includes('מטיס פנים וחוץ')
   }
 
   // Calculate rataCertification from rataCertifications for backward compatibility
@@ -210,7 +230,7 @@ function PilotForm({
     return new Date().toISOString().split('T')[0]
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validate no conflicting certifications
@@ -225,23 +245,90 @@ function PilotForm({
       return
     }
 
-    onSubmit({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      rataCertification: calculateRataCertification(rataCertifications),
-      rataCertifications: rataCertifications,
-      isSafetyOfficer: isSafetyOfficer,
-      categories,
-      hasSmallFixedWingLicense,
-      smallFixedWingLicenseExpiry: hasSmallFixedWingLicense && smallFixedWingLicenseExpiry ? new Date(smallFixedWingLicenseExpiry) : undefined,
-      healthCertificateExpiry: new Date(healthCertificateExpiry),
-      isInstructor,
-      instructorLicenseExpiry: isInstructor && instructorLicenseExpiry ? new Date(instructorLicenseExpiry) : undefined,
-      restrictions,
-      customRestrictions: restrictions === 'אחר' ? customRestrictions : undefined
-    })
-    onClose()
+    // Validate health certificate expiry date is required
+    if (!healthCertificateExpiry || healthCertificateExpiry.trim() === '') {
+      alert('יש להזין תאריך תוקף תעודה רפואית')
+      return
+    }
+
+    // Validate small fixed wing license expiry if enabled
+    if (hasSmallFixedWingLicense && (!smallFixedWingLicenseExpiry || smallFixedWingLicenseExpiry.trim() === '')) {
+      alert('יש להזין תאריך תוקף רישיון 0-25 ק"ג')
+      return
+    }
+
+    // Validate instructor license expiry if instructor
+    if (isInstructor && (!instructorLicenseExpiry || instructorLicenseExpiry.trim() === '')) {
+      alert('יש להזין תאריך תוקף רישיון מדריך')
+      return
+    }
+
+    // Validate pilot license number if required
+    if (isPilotLicenseNumberRequired() && !pilotLicenseNumber.trim()) {
+      alert('יש להזין מספר רשיון מטיס')
+      return
+    }
+
+    // Validate instructor license number if instructor
+    if (isInstructor && !instructorLicenseNumber.trim()) {
+      alert('יש להזין מספר רשיון מדריך')
+      return
+    }
+
+    try {
+      setIsUploadingImage(true)
+      console.log('Form submitting...')
+      
+      // Convert images to base64 if new files are selected
+      let finalPilotImageUrl = pilotLicenseImageUrl
+      let finalInstructorImageUrl = instructorLicenseImageUrl
+      
+      if (pilotLicenseImage) {
+        const { uploadLicenseImage } = await import('@/lib/firebase')
+        finalPilotImageUrl = await uploadLicenseImage(pilotLicenseImage, 'temp', 'pilot')
+        console.log('Pilot license image converted to base64')
+      }
+      
+      if (instructorLicenseImage) {
+        const { uploadLicenseImage } = await import('@/lib/firebase')
+        finalInstructorImageUrl = await uploadLicenseImage(instructorLicenseImage, 'temp', 'instructor')
+        console.log('Instructor license image converted to base64')
+      }
+      
+      // Pass the data with base64 image URLs to parent
+      await onSubmit(
+        {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          rataCertification: calculateRataCertification(rataCertifications),
+          rataCertifications: rataCertifications,
+          isSafetyOfficer: isSafetyOfficer,
+          categories,
+          hasSmallFixedWingLicense,
+          smallFixedWingLicenseExpiry: hasSmallFixedWingLicense && smallFixedWingLicenseExpiry ? new Date(smallFixedWingLicenseExpiry) : undefined,
+          healthCertificateExpiry: new Date(healthCertificateExpiry),
+          isInstructor,
+          instructorLicenseExpiry: isInstructor && instructorLicenseExpiry ? new Date(instructorLicenseExpiry) : undefined,
+          restrictions,
+          customRestrictions: restrictions === 'אחר' ? customRestrictions : undefined,
+          pilotLicenseNumber: isPilotLicenseNumberRequired() ? pilotLicenseNumber.trim() : undefined,
+          pilotLicenseImageUrl: finalPilotImageUrl || undefined,
+          instructorLicenseNumber: isInstructor ? instructorLicenseNumber.trim() : undefined,
+          instructorLicenseImageUrl: finalInstructorImageUrl || undefined
+        },
+        undefined, // No longer need to pass file objects
+        undefined  // No longer need to pass file objects
+      )
+      
+      console.log('Form submission completed')
+      onClose()
+    } catch (error) {
+      console.error('Error in form submission:', error)
+      alert('שגיאה בשמירת הנתונים')
+    } finally {
+      setIsUploadingImage(false)
+    }
   }
 
   return (
@@ -357,6 +444,50 @@ function PilotForm({
               </p>
             )}
           </div>
+
+          {/* Pilot License Number - Required if has active license */}
+          {isPilotLicenseNumberRequired() && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                מספר רשיון מטיס <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={pilotLicenseNumber}
+                onChange={(e) => setPilotLicenseNumber(e.target.value)}
+                required={isPilotLicenseNumberRequired()}
+                placeholder="הזן מספר רשיון"
+                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+          )}
+
+          {/* Pilot License Image Upload - Optional */}
+          {isPilotLicenseNumberRequired() && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                העלה תמונת רשיון מטיס (לא חובה)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    setPilotLicenseImage(file)
+                  }
+                }}
+                disabled={isUploadingImage}
+                className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+              {pilotLicenseImageUrl && (
+                <p className="text-xs text-green-400">✓ תמונה קיימת נשמרה</p>
+              )}
+              {pilotLicenseImage && (
+                <p className="text-xs text-blue-400">✓ תמונה חדשה נבחרה: {pilotLicenseImage.name}</p>
+              )}
+            </div>
+          )}
           
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-300">
@@ -524,22 +655,64 @@ function PilotForm({
           </div>
 
           {isInstructor && (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">
-                תוקף רישיון מדריך
-              </label>
-              <CustomDatePicker
-                value={instructorLicenseExpiry}
-                onChange={setInstructorLicenseExpiry}
-                maxYearsFromNow={2}
-                required={isInstructor}
-                placeholder="DD/MM/YYYY"
-                className="w-full"
-              />
-              <p className="text-xs text-gray-400">
-                ניתן להזין תאריך עד 2 שנים מהיום (פורמט: DD/MM/YYYY)
-              </p>
-            </div>
+            <>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  תוקף רישיון מדריך
+                </label>
+                <CustomDatePicker
+                  value={instructorLicenseExpiry}
+                  onChange={setInstructorLicenseExpiry}
+                  maxYearsFromNow={2}
+                  required={isInstructor}
+                  placeholder="DD/MM/YYYY"
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-400">
+                  ניתן להזין תאריך עד 2 שנים מהיום (פורמט: DD/MM/YYYY)
+                </p>
+              </div>
+
+              {/* Instructor License Number - Required */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  מספר רשיון מדריך <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={instructorLicenseNumber}
+                  onChange={(e) => setInstructorLicenseNumber(e.target.value)}
+                  required={isInstructor}
+                  placeholder="הזן מספר רשיון מדריך"
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* Instructor License Image Upload - Optional */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  העלה תמונת רשיון מדריך (לא חובה)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setInstructorLicenseImage(file)
+                    }
+                  }}
+                  disabled={isUploadingImage}
+                  className={`w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-500 file:text-white hover:file:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                />
+                {instructorLicenseImageUrl && (
+                  <p className="text-xs text-green-400">✓ תמונה קיימת נשמרה</p>
+                )}
+                {instructorLicenseImage && (
+                  <p className="text-xs text-blue-400">✓ תמונה חדשה נבחרה: {instructorLicenseImage.name}</p>
+                )}
+              </div>
+            </>
           )}
           
           <div className="space-y-2">
@@ -583,9 +756,10 @@ function PilotForm({
           <div className="flex gap-4 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+              disabled={isUploadingImage}
+              className={`flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${isUploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {isEditing ? 'עדכן מטיס' : 'הוסף מטיס'}
+              {isUploadingImage ? 'מעלה תמונות...' : isEditing ? 'עדכן מטיס' : 'הוסף מטיס'}
             </button>
             
             <button
@@ -614,6 +788,14 @@ export default function Dashboard() {
   const [showPilotsTable, setShowPilotsTable] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [imageModalPilot, setImageModalPilot] = useState<Pilot | null>(null)
+  
+  // Logout handler
+  const handleLogout = () => {
+    sessionStorage.removeItem('uav_authenticated')
+    window.location.reload()
+  }
   
   // Check admin status on component mount
   useEffect(() => {
@@ -668,7 +850,7 @@ export default function Dashboard() {
       title: 'מטיסים פעילים',
       value: stats.totalPilots.toString(),
       icon: Users,
-      trend: '+3 החודש',
+      trend: '',
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10'
     },
@@ -676,7 +858,7 @@ export default function Dashboard() {
       title: 'רישיונות מטיס פנים תקפים',
       value: `${stats.validIpPilots} מתוך ${stats.ipPilots}`,
       icon: Award,
-      trend: '+2 החודש',
+      trend: '',
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/10'
     },
@@ -684,7 +866,7 @@ export default function Dashboard() {
       title: 'רישיונות מטיס חוץ תקפים',
       value: `${stats.validEpPilots} מתוך ${stats.epPilots}`,
       icon: Shield,
-      trend: '+1 החודש',
+      trend: '',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10'
     },
@@ -714,18 +896,26 @@ export default function Dashboard() {
     }
   ]
 
-  const handleAddPilot = async (newPilot: Omit<Pilot, 'id' | 'createdAt'>) => {
+  const handleAddPilot = async (newPilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => {
+    console.log('handleAddPilot called', { newPilot })
     try {
+      // Images are already base64 strings in newPilot, just create the pilot
+      console.log('Creating pilot with all data including base64 images...')
       const pilot = await addPilot(newPilot)
+      console.log('Pilot created successfully:', pilot)
+      
       setPilots([...pilots, pilot])
+      console.log('handleAddPilot completed successfully')
     } catch (error) {
       console.error('Error adding pilot:', error)
+      alert('שגיאה בהוספת מטיס')
     }
   }
 
-  const handleEditPilot = async (editedPilot: Omit<Pilot, 'id' | 'createdAt'>) => {
+  const handleEditPilot = async (editedPilot: Omit<Pilot, 'id' | 'createdAt'>, pilotLicenseImage?: File, instructorLicenseImage?: File) => {
     if (editingPilot && editingPilot.id) {
       try {
+        // Images are already base64 strings in editedPilot, just update the pilot
         await updatePilot(editingPilot.id, editedPilot)
         const updatedPilots = pilots.map(pilot => 
           pilot.id === editingPilot.id 
@@ -736,6 +926,7 @@ export default function Dashboard() {
         setEditingPilot(null)
       } catch (error) {
         console.error('Error updating pilot:', error)
+        alert('שגיאה בעדכון מטיס')
       }
     }
   }
@@ -883,7 +1074,8 @@ export default function Dashboard() {
   }).sort((a, b) => b.days - a.days)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden" style={{ direction: 'rtl' }}>
+    <PasswordProtection>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden" style={{ direction: 'rtl' }}>
       {/* Animated Background */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
@@ -918,10 +1110,20 @@ export default function Dashboard() {
               <div className="flex-shrink-0 flex items-center">
                 <Plane className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
                 <span className="mr-2 text-lg sm:text-xl font-bold text-white hidden sm:block">מערכת ניהול רישיונות כטמ"ם</span>
-                <span className="mr-2 text-sm font-bold text-white sm:hidden">כטמ"ם אירונאוטיקס</span>
+                <span className="mr-2 text-sm font-bold text-white sm:hidden">כטמ"ם</span>
               </div>
             </div>
-            <AdminLogin onAdminStatusChange={setIsAdmin} />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLogout}
+                className="group bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center gap-2 text-sm"
+                title="יציאה"
+              >
+                <LogOut className="w-4 h-4 transition-transform group-hover:rotate-12" />
+                <span className="hidden sm:inline">יציאה</span>
+              </button>
+              <AdminLogin onAdminStatusChange={setIsAdmin} />
+            </div>
           </div>
         </div>
       </header>
@@ -936,7 +1138,7 @@ export default function Dashboard() {
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">מערכת ניהול רשיונות כטמ"ם אירונאוטיקס</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">מערכת ניהול רשיונות כטמ"ם</h1>
               <p className="text-gray-400 text-sm sm:text-base">ניהול רישיונות מטיסי כטמ"ם ותעודות רפואיות</p>
             </div>
             <div className="flex gap-3">
@@ -997,9 +1199,11 @@ export default function Dashboard() {
                       <p className="text-2xl font-semibold text-white">{card.value}</p>
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">{card.trend}</p>
-                  </div>
+                  {card.trend && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-500">{card.trend}</p>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>
@@ -1183,6 +1387,35 @@ export default function Dashboard() {
                                 {pilot.restrictions === 'אחר' ? pilot.customRestrictions : pilot.restrictions}
                               </span>
                             </div>
+                            
+                            {pilot.pilotLicenseNumber && (
+                              <div>
+                                <span className="text-gray-400">מספר רישיון מטיס: </span>
+                                <span className="text-gray-300">{pilot.pilotLicenseNumber}</span>
+                              </div>
+                            )}
+                            
+                            {pilot.instructorLicenseNumber && (
+                              <div>
+                                <span className="text-gray-400">מספר רישיון מדריך: </span>
+                                <span className="text-gray-300">{pilot.instructorLicenseNumber}</span>
+                              </div>
+                            )}
+                            
+                            {(pilot.pilotLicenseImageUrl || pilot.instructorLicenseImageUrl) && (
+                              <div>
+                                <button
+                                  onClick={() => {
+                                    setImageModalPilot(pilot)
+                                    setImageModalOpen(true)
+                                  }}
+                                  className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 text-sm"
+                                >
+                                  <ImageIcon className="h-4 w-4" />
+                                  <span>צפה בתמונות רישיון</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       )
@@ -1209,6 +1442,15 @@ export default function Dashboard() {
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                         תוקף רישיון מדריך
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        מספר רישיון מטיס
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        מספר רישיון מדריך
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        תמונות רישיון
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                         הגבלות
@@ -1305,6 +1547,32 @@ export default function Dashboard() {
                                 <span className="text-yellow-400">חסר תאריך</span>
                               ) : (
                                 <span className="text-gray-500">לא מדריך</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-300">
+                                {pilot.pilotLicenseNumber || <span className="text-gray-500">-</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-300">
+                                {pilot.instructorLicenseNumber || <span className="text-gray-500">-</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {(pilot.pilotLicenseImageUrl || pilot.instructorLicenseImageUrl) ? (
+                                <button
+                                  onClick={() => {
+                                    setImageModalPilot(pilot)
+                                    setImageModalOpen(true)
+                                  }}
+                                  className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-purple-500/10"
+                                >
+                                  <ImageIcon className="h-4 w-4" />
+                                  <span className="text-xs">צפה</span>
+                                </button>
+                              ) : (
+                                <span className="text-gray-500 text-xs">אין תמונות</span>
                               )}
                             </td>
                             <td className="px-6 py-4">
@@ -1558,6 +1826,41 @@ export default function Dashboard() {
                   </div>
                 </div>
 
+                {/* License Numbers and Images */}
+                {(selectedPilot.pilotLicenseNumber || selectedPilot.instructorLicenseNumber || selectedPilot.pilotLicenseImageUrl || selectedPilot.instructorLicenseImageUrl) && (
+                  <div className="bg-gray-800/40 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-400">מספרי רישיונות</h4>
+                      {(selectedPilot.pilotLicenseImageUrl || selectedPilot.instructorLicenseImageUrl) && (
+                        <button
+                          onClick={() => {
+                            setImageModalPilot(selectedPilot)
+                            setImageModalOpen(true)
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg transition-colors"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                          <span className="text-sm">צפה בתמונות</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {selectedPilot.pilotLicenseNumber && (
+                        <div>
+                          <p className="text-xs text-gray-500">מספר רשיון מטיס</p>
+                          <p className="text-white font-mono">{selectedPilot.pilotLicenseNumber}</p>
+                        </div>
+                      )}
+                      {selectedPilot.instructorLicenseNumber && (
+                        <div>
+                          <p className="text-xs text-gray-500">מספר רשיון מדריך</p>
+                          <p className="text-white font-mono">{selectedPilot.instructorLicenseNumber}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-gray-800/40 rounded-xl p-4">
                   <h4 className="text-sm font-medium text-gray-400 mb-2">קטגוריות כטמ"ם</h4>
                   <div className="flex flex-wrap gap-2">
@@ -1679,6 +1982,19 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-    </div>
+      {/* License Image Modal */}
+      <LicenseImageModal
+        isOpen={imageModalOpen}
+        onClose={() => {
+          setImageModalOpen(false)
+          setImageModalPilot(null)
+        }}
+        pilotLicenseUrl={imageModalPilot?.pilotLicenseImageUrl}
+        instructorLicenseUrl={imageModalPilot?.instructorLicenseImageUrl}
+        pilotName={imageModalPilot ? `${imageModalPilot.firstName} ${imageModalPilot.lastName}` : ''}
+      />
+
+      </div>
+    </PasswordProtection>
   )
 }
